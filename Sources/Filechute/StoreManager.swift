@@ -8,6 +8,7 @@ final class StoreManager {
     private(set) var objects: [StoredObject] = []
     private(set) var allTags: [TagCount] = []
     private(set) var deletedObjects: [StoredObject] = []
+    private(set) var tagNamesByObject: [Int64: [String]] = [:]
 
     nonisolated let objectStore: ObjectStore
     nonisolated let database: Database
@@ -34,6 +35,7 @@ final class StoreManager {
         allTags = try await database.allTagsWithCounts()
         deletedObjects = try await database.allObjects(includeDeleted: true)
             .filter { $0.deletedAt != nil }
+        tagNamesByObject = try await database.allTagNamesByObject()
     }
 
     func ingest(urls: [URL]) async throws {
@@ -50,11 +52,13 @@ final class StoreManager {
     func addTag(_ name: String, to objectId: Int64) async throws {
         let tag = try await database.getOrCreateTag(name: name)
         try await database.addTag(tag.id, toObject: objectId)
+        try await database.touchModified(id: objectId)
         try await refresh()
     }
 
     func removeTag(_ tagId: Int64, from objectId: Int64) async throws {
         try await database.removeTag(tagId, fromObject: objectId)
+        try await database.touchModified(id: objectId)
         try await refresh()
     }
 
@@ -105,6 +109,8 @@ final class StoreManager {
 
     func openObject(_ object: StoredObject) async throws {
         let url = try await temporaryCopyURL(for: object)
+        try await database.touchLastOpened(id: object.id)
+        try await refresh()
         NSWorkspace.shared.open(url)
     }
 

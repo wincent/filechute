@@ -26,10 +26,9 @@ public struct IngestionService: Sendable {
         }
 
         let objectName = name ?? sourceURL.deletingPathExtension().lastPathComponent
-
-        let objectId = try await database.insertObject(hash: hash, name: objectName)
-
         let ext = sourceURL.pathExtension
+
+        let objectId = try await database.insertObject(hash: hash, name: objectName, fileExtension: ext)
         if !ext.isEmpty {
             try await database.setMetadata(objectId: objectId, key: "extension", value: ext)
         }

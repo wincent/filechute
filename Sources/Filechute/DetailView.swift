@@ -10,11 +10,28 @@ struct DetailView: View {
     @State private var versionHistory: [StoredObject] = []
     @State private var allExistingTags: [Tag] = []
     @State private var suggestedTags: [String] = []
+    @State private var renameHistory: [RenameEntry] = []
+    @State private var showRenameHistory = false
 
     var body: some View {
         Form {
             Section("Details") {
-                LabeledContent("Name", value: object.name)
+                HStack {
+                    LabeledContent("Name", value: object.name)
+                    if !renameHistory.isEmpty {
+                        Button {
+                            showRenameHistory.toggle()
+                        } label: {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Rename history")
+                        .popover(isPresented: $showRenameHistory) {
+                            RenameHistoryView(entries: renameHistory)
+                        }
+                    }
+                }
                 LabeledContent("Hash") {
                     Text(object.hash.hexString)
                         .font(.caption.monospaced())
@@ -123,11 +140,12 @@ struct DetailView: View {
             }
         }
         .formStyle(.grouped)
-        .task(id: object.id) {
+        .task(id: "\(object.id)-\(object.name)-\(object.modifiedAt?.timeIntervalSince1970 ?? 0)") {
             await loadTags()
             await loadVersionHistory()
             await loadExistingTags()
             await loadSuggestions()
+            await loadRenameHistory()
         }
     }
 
@@ -149,5 +167,42 @@ struct DetailView: View {
         let suggested = (try? await service.suggestTags(forFilename: object.name, extension: ext)) ?? []
         let appliedNames = Set(objectTags.map { $0.name.lowercased() })
         suggestedTags = suggested.filter { !appliedNames.contains($0.lowercased()) }
+    }
+
+    private func loadRenameHistory() async {
+        let entries = (try? await storeManager.database.renameHistory(for: object.id)) ?? []
+        renameHistory = entries.map { RenameEntry(oldName: $0.oldName, newName: $0.newName, date: $0.date) }
+    }
+}
+
+struct RenameHistoryView: View {
+    let entries: [RenameEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Rename History")
+                .font(.headline)
+            ForEach(entries) { entry in
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text(entry.oldName)
+                                .strikethrough()
+                                .foregroundStyle(.secondary)
+                            Image(systemName: "arrow.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(entry.newName)
+                        }
+                        .font(.caption)
+                        Text(entry.date, format: .dateTime)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding()
+        .frame(minWidth: 250)
     }
 }

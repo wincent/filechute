@@ -16,6 +16,7 @@ app: build
 	mkdir -p $(MACOS) $(RESOURCES)
 	cp .build/debug/$(APP_NAME) $(MACOS)/$(APP_NAME)
 	cp Info.plist $(CONTENTS)/Info.plist
+	cp Resources/AppIcon.icns $(RESOURCES)/AppIcon.icns
 	@echo "Built $(APP_DIR)"
 
 run: app

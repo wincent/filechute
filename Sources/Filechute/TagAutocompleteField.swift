@@ -18,7 +18,7 @@ struct TagAutocompleteField: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 TextField("Add tag", text: $text)
-                    .textFieldStyle(.plain)
+                    .textFieldStyle(.roundedBorder)
                     .onSubmit {
                         submitTag()
                     }
@@ -26,9 +26,10 @@ struct TagAutocompleteField: View {
                         showSuggestions = !newValue.isEmpty
                     }
                     .accessibilityLabel("New tag name")
-                Button("Add") {
-                    submitTag()
+                Button(action: submitTag) {
+                    Image(systemName: "plus.circle.fill")
                 }
+                .buttonStyle(.borderless)
                 .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
                 .accessibilityLabel("Add tag")
             }

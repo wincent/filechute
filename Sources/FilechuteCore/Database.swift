@@ -33,7 +33,10 @@ public actor Database {
             hash TEXT NOT NULL UNIQUE,
             name TEXT NOT NULL,
             created_at INTEGER NOT NULL,
-            deleted_at INTEGER
+            deleted_at INTEGER,
+            modified_at INTEGER,
+            last_opened_at INTEGER,
+            file_extension TEXT NOT NULL DEFAULT ''
         )
         """,
         """
@@ -69,6 +72,28 @@ public actor Database {
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_versions_previous ON versions(previous_object_id)",
+        """
+        CREATE TABLE IF NOT EXISTS rename_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            object_id INTEGER NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+            old_name TEXT NOT NULL,
+            new_name TEXT NOT NULL,
+            renamed_at INTEGER NOT NULL
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_rename_history_object ON rename_history(object_id)",
+    ]
+
+    private static let migrations: [String] = [
+        "ALTER TABLE objects ADD COLUMN modified_at INTEGER",
+        "ALTER TABLE objects ADD COLUMN last_opened_at INTEGER",
+        "ALTER TABLE objects ADD COLUMN file_extension TEXT NOT NULL DEFAULT ''",
+        """
+        UPDATE objects SET file_extension = COALESCE(
+            (SELECT value FROM metadata WHERE metadata.object_id = objects.id AND metadata.key = 'extension'),
+            ''
+        ) WHERE file_extension = ''
+        """,
     ]
 
     private static func initSchema(db: OpaquePointer) throws {
@@ -81,24 +106,33 @@ public actor Database {
                 throw DatabaseError.executionFailed(msg)
             }
         }
+        for sql in migrations {
+            var error: UnsafeMutablePointer<CChar>?
+            // Ignore failures (column already exists).
+            sqlite3_exec(db, sql, nil, nil, &error)
+            sqlite3_free(error)
+        }
     }
 
     // MARK: - Objects
 
-    public func insertObject(hash: ContentHash, name: String) throws -> Int64 {
-        try insert(
-            "INSERT INTO objects (hash, name, created_at) VALUES (?, ?, ?)",
+    public func insertObject(hash: ContentHash, name: String, fileExtension: String = "") throws -> Int64 {
+        let now = Int64(Date().timeIntervalSince1970)
+        return try insert(
+            "INSERT INTO objects (hash, name, created_at, modified_at, file_extension) VALUES (?, ?, ?, ?, ?)",
             bind: { stmt in
                 sqlite3_bind_text(stmt, 1, hash.hexString, -1, SQLITE_TRANSIENT)
                 sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT)
-                sqlite3_bind_int64(stmt, 3, Int64(Date().timeIntervalSince1970))
+                sqlite3_bind_int64(stmt, 3, now)
+                sqlite3_bind_int64(stmt, 4, now)
+                sqlite3_bind_text(stmt, 5, fileExtension, -1, SQLITE_TRANSIENT)
             }
         )
     }
 
     public func getObject(byId id: Int64) throws -> StoredObject? {
         try query(
-            "SELECT id, hash, name, created_at, deleted_at FROM objects WHERE id = ?",
+            "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE id = ?",
             bind: { stmt in sqlite3_bind_int64(stmt, 1, id) },
             read: readObject
         ).first
@@ -106,7 +140,7 @@ public actor Database {
 
     public func getObject(byHash hash: ContentHash) throws -> StoredObject? {
         try query(
-            "SELECT id, hash, name, created_at, deleted_at FROM objects WHERE hash = ?",
+            "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE hash = ?",
             bind: { stmt in sqlite3_bind_text(stmt, 1, hash.hexString, -1, SQLITE_TRANSIENT) },
             read: readObject
         ).first
@@ -114,16 +148,63 @@ public actor Database {
 
     public func allObjects(includeDeleted: Bool = false) throws -> [StoredObject] {
         let sql = includeDeleted
-            ? "SELECT id, hash, name, created_at, deleted_at FROM objects ORDER BY name"
-            : "SELECT id, hash, name, created_at, deleted_at FROM objects WHERE deleted_at IS NULL ORDER BY name"
+            ? "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects ORDER BY name"
+            : "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE deleted_at IS NULL ORDER BY name"
         return try query(sql, read: readObject)
     }
 
     public func renameObject(id: Int64, newName: String) throws {
+        let now = Int64(Date().timeIntervalSince1970)
+        if let existing = try getObject(byId: id) {
+            try insert(
+                "INSERT INTO rename_history (object_id, old_name, new_name, renamed_at) VALUES (?, ?, ?, ?)",
+                bind: { stmt in
+                    sqlite3_bind_int64(stmt, 1, id)
+                    sqlite3_bind_text(stmt, 2, existing.name, -1, SQLITE_TRANSIENT)
+                    sqlite3_bind_text(stmt, 3, newName, -1, SQLITE_TRANSIENT)
+                    sqlite3_bind_int64(stmt, 4, now)
+                }
+            )
+        }
         try update(
-            "UPDATE objects SET name = ? WHERE id = ?",
+            "UPDATE objects SET name = ?, modified_at = ? WHERE id = ?",
             bind: { stmt in
                 sqlite3_bind_text(stmt, 1, newName, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_int64(stmt, 2, now)
+                sqlite3_bind_int64(stmt, 3, id)
+            }
+        )
+    }
+
+    public func renameHistory(for objectId: Int64) throws -> [(oldName: String, newName: String, date: Date)] {
+        try query(
+            "SELECT old_name, new_name, renamed_at FROM rename_history WHERE object_id = ? ORDER BY id DESC",
+            bind: { stmt in sqlite3_bind_int64(stmt, 1, objectId) },
+            read: { stmt in
+                (
+                    oldName: String(cString: sqlite3_column_text(stmt, 0)),
+                    newName: String(cString: sqlite3_column_text(stmt, 1)),
+                    date: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(stmt, 2)))
+                )
+            }
+        )
+    }
+
+    public func touchModified(id: Int64) throws {
+        try update(
+            "UPDATE objects SET modified_at = ? WHERE id = ?",
+            bind: { stmt in
+                sqlite3_bind_int64(stmt, 1, Int64(Date().timeIntervalSince1970))
+                sqlite3_bind_int64(stmt, 2, id)
+            }
+        )
+    }
+
+    public func touchLastOpened(id: Int64) throws {
+        try update(
+            "UPDATE objects SET last_opened_at = ? WHERE id = ?",
+            bind: { stmt in
+                sqlite3_bind_int64(stmt, 1, Int64(Date().timeIntervalSince1970))
                 sqlite3_bind_int64(stmt, 2, id)
             }
         )
@@ -252,12 +333,30 @@ public actor Database {
         )
     }
 
+    public func allTagNamesByObject() throws -> [Int64: [String]] {
+        let rows: [(Int64, String)] = try query(
+            """
+            SELECT tg.object_id, t.name FROM tags t
+            JOIN taggings tg ON tg.tag_id = t.id
+            ORDER BY tg.object_id, t.name
+            """,
+            read: { stmt in
+                (sqlite3_column_int64(stmt, 0), String(cString: sqlite3_column_text(stmt, 1)))
+            }
+        )
+        var result: [Int64: [String]] = [:]
+        for (objectId, name) in rows {
+            result[objectId, default: []].append(name)
+        }
+        return result
+    }
+
     // MARK: - Search
 
     public func objects(withTagId tagId: Int64) throws -> [StoredObject] {
         try query(
             """
-            SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at
+            SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
             FROM objects o
             JOIN taggings tg ON tg.object_id = o.id
             WHERE tg.tag_id = ? AND o.deleted_at IS NULL
@@ -286,7 +385,7 @@ public actor Database {
         }
 
         let sql = """
-            SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at
+            SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
             FROM objects o\(joins)
             \(conditions)
             ORDER BY o.name
@@ -348,6 +447,16 @@ public actor Database {
         )
     }
 
+    public func allExtensions() throws -> [Int64: String] {
+        let rows: [(Int64, String)] = try query(
+            "SELECT object_id, value FROM metadata WHERE key = 'extension' AND value IS NOT NULL",
+            read: { stmt in
+                (sqlite3_column_int64(stmt, 0), String(cString: sqlite3_column_text(stmt, 1)))
+            }
+        )
+        return Dictionary(rows, uniquingKeysWith: { _, last in last })
+    }
+
     public func getMetadata(objectId: Int64, key: String) throws -> String? {
         try query(
             "SELECT value FROM metadata WHERE object_id = ? AND key = ?",
@@ -393,7 +502,7 @@ public actor Database {
         while true {
             let predecessors = try query(
                 """
-                SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at
+                SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
                 FROM objects o
                 JOIN versions v ON v.previous_object_id = o.id
                 WHERE v.object_id = ?
@@ -416,7 +525,7 @@ public actor Database {
         while true {
             let successors = try query(
                 """
-                SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at
+                SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
                 FROM objects o
                 JOIN versions v ON v.object_id = o.id
                 WHERE v.previous_object_id = ?
@@ -530,7 +639,10 @@ public actor Database {
             hash: ContentHash(hexString: columnText(stmt, 1)!),
             name: columnText(stmt, 2)!,
             createdAt: columnDate(stmt, 3),
-            deletedAt: columnOptionalDate(stmt, 4)
+            deletedAt: columnOptionalDate(stmt, 4),
+            modifiedAt: columnOptionalDate(stmt, 5),
+            lastOpenedAt: columnOptionalDate(stmt, 6),
+            fileExtension: columnText(stmt, 7) ?? ""
         )
     }
 

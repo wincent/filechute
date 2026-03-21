@@ -101,6 +101,99 @@ struct DatabaseObjectTests {
             try await db.insertObject(hash: hash, name: "second")
         }
     }
+
+    @Test("Rename records history")
+    func renameHistory() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "original")
+        try await db.renameObject(id: id, newName: "renamed")
+        try await db.renameObject(id: id, newName: "final")
+
+        let history = try await db.renameHistory(for: id)
+        #expect(history.count == 2)
+        #expect(history[0].oldName == "renamed")
+        #expect(history[0].newName == "final")
+        #expect(history[1].oldName == "original")
+        #expect(history[1].newName == "renamed")
+    }
+
+    @Test("Rename updates modified_at")
+    func renameUpdatesModifiedAt() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "test")
+        let before = try await db.getObject(byId: id)
+
+        try await Task.sleep(for: .seconds(1))
+        try await db.renameObject(id: id, newName: "renamed")
+        let after = try await db.getObject(byId: id)
+
+        #expect(after!.modifiedAt! > before!.modifiedAt!)
+    }
+
+    @Test("touchModified updates timestamp")
+    func touchModified() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "test")
+        let before = try await db.getObject(byId: id)
+
+        try await Task.sleep(for: .seconds(1))
+        try await db.touchModified(id: id)
+        let after = try await db.getObject(byId: id)
+
+        #expect(after!.modifiedAt! > before!.modifiedAt!)
+    }
+
+    @Test("touchLastOpened updates timestamp")
+    func touchLastOpened() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "test")
+        let before = try await db.getObject(byId: id)
+        #expect(before!.lastOpenedAt == nil)
+
+        try await db.touchLastOpened(id: id)
+        let after = try await db.getObject(byId: id)
+        #expect(after!.lastOpenedAt != nil)
+    }
+
+    @Test("File extension stored on insert")
+    func fileExtensionOnInsert() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "doc", fileExtension: "pdf")
+        let obj = try await db.getObject(byId: id)
+        #expect(obj!.fileExtension == "pdf")
+    }
+
+    @Test("File extension defaults to empty string")
+    func fileExtensionDefault() async throws {
+        let db = try makeDB()
+        let id = try await db.insertObject(hash: sampleHash(1), name: "readme")
+        let obj = try await db.getObject(byId: id)
+        #expect(obj!.fileExtension == "")
+    }
+
+    @Test("fileTypeDisplay returns uppercased extension")
+    func fileTypeDisplay() {
+        let obj = StoredObject(id: 1, hash: sampleHash(1), name: "doc", createdAt: Date(), fileExtension: "pdf")
+        #expect(obj.fileTypeDisplay == "PDF")
+
+        let noExt = StoredObject(id: 2, hash: sampleHash(2), name: "readme", createdAt: Date())
+        #expect(noExt.fileTypeDisplay == "")
+    }
+
+    @Test("effectiveModifiedAt falls back to createdAt")
+    func effectiveModifiedAt() {
+        let now = Date()
+        let obj = StoredObject(id: 1, hash: sampleHash(1), name: "test", createdAt: now)
+        #expect(obj.effectiveModifiedAt == now)
+        #expect(obj.modifiedAt == nil)
+    }
+
+    @Test("effectiveLastOpenedAt falls back to distantPast")
+    func effectiveLastOpenedAt() {
+        let obj = StoredObject(id: 1, hash: sampleHash(1), name: "test", createdAt: Date())
+        #expect(obj.effectiveLastOpenedAt == .distantPast)
+        #expect(obj.lastOpenedAt == nil)
+    }
 }
 
 @Suite("Database - Tags")
