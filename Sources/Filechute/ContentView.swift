@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var filteredObjects: [StoredObject]?
     @State private var searchText = ""
     @State private var quickLookURL: URL?
+    @State private var quickLookItems: [URL] = []
 
     var selectedObject: StoredObject? {
         guard let id = selectedObjectId else { return nil }
@@ -55,7 +56,9 @@ struct ContentView: View {
             }
             .inspector(isPresented: $showInspector) {
                 if let selectedObject {
-                    DetailView(object: selectedObject, storeManager: storeManager, quickLookURL: $quickLookURL)
+                    DetailView(object: selectedObject, storeManager: storeManager) {
+                        activateQuickLook(for: selectedObject)
+                    }
                         .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
                 } else {
                     Text("No selection")
@@ -93,7 +96,7 @@ struct ContentView: View {
                 }
             }
         }
-        .quickLookPreview($quickLookURL)
+        .quickLookPreview($quickLookURL, in: quickLookItems)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
@@ -146,11 +149,28 @@ struct ContentView: View {
         }
         .onKeyPress(.space) {
             if let selectedObject {
-                let obj = selectedObject
-                Task { quickLookURL = try? await storeManager.temporaryCopyURL(for: obj) }
+                activateQuickLook(for: selectedObject)
                 return .handled
             }
             return .ignored
+        }
+    }
+
+    private func activateQuickLook(for object: StoredObject) {
+        let objects = displayedObjects
+        Task {
+            var urls: [URL] = []
+            var selectedURL: URL?
+            for obj in objects {
+                if let url = try? await storeManager.temporaryCopyURL(for: obj) {
+                    urls.append(url)
+                    if obj.id == object.id {
+                        selectedURL = url
+                    }
+                }
+            }
+            quickLookItems = urls
+            quickLookURL = selectedURL
         }
     }
 

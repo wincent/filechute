@@ -4,7 +4,7 @@ import SwiftUI
 struct DetailView: View {
     let object: StoredObject
     var storeManager: StoreManager
-    @Binding var quickLookURL: URL?
+    var onQuickLook: () -> Void
     @State private var objectTags: [Tag] = []
     @State private var newTagName = ""
     @State private var versionHistory: [StoredObject] = []
@@ -35,7 +35,7 @@ struct DetailView: View {
                 .accessibilityLabel("Open file in default application")
 
                 Button("Quick Look") {
-                    Task { await showQuickLook() }
+                    onQuickLook()
                 }
                 .keyboardShortcut(" ", modifiers: [])
                 .accessibilityLabel("Preview file with Quick Look")
@@ -129,10 +129,6 @@ struct DetailView: View {
             await loadExistingTags()
             await loadSuggestions()
         }
-    }
-
-    private func showQuickLook() async {
-        quickLookURL = try? await storeManager.temporaryCopyURL(for: object)
     }
 
     private func loadTags() async {
