@@ -129,47 +129,44 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            setupKeyMonitor()
             keyMonitor.install()
-            syncKeyMonitor()
         }
         .onDisappear {
             keyMonitor.uninstall()
-        }
-        .onChange(of: editingObjectId) { _, _ in syncKeyMonitor() }
-        .onChange(of: selection) { _, newSelection in
-            syncKeyMonitor()
-            if quickLookCoordinator.isVisible,
-               newSelection.count == 1,
-               let id = newSelection.first,
-               let obj = displayedObjects.first(where: { $0.id == id })
-            {
-                Task {
-                    if let url = try? await storeManager.temporaryCopyURL(for: obj) {
-                        quickLookCoordinator.updatePreview(for: url)
-                    }
-                }
-            }
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
     }
 
-    private func syncKeyMonitor() {
-        keyMonitor.isEditing = editingObjectId != nil
-        keyMonitor.onStartRename = {
-            if let selectedObject {
-                startRename(for: selectedObject)
-            }
+    private func setupKeyMonitor() {
+        keyMonitor.context = { [self] in
+            InteractionContext(
+                isEditing: editingObjectId != nil,
+                hasSelection: !selection.isEmpty,
+                isQuickLookVisible: quickLookCoordinator.isVisible
+            )
         }
-        keyMonitor.onCancelRename = {
+        keyMonitor.perform = { [self] effect in
+            handleEffect(effect)
+        }
+    }
+
+    private func handleEffect(_ effect: InteractionEffect) {
+        switch effect {
+        case .startRename:
+            if let selectedObject { startRename(for: selectedObject) }
+        case .cancelRename:
             cancelRename()
-        }
-        keyMonitor.isQuickLookVisible = { [quickLookCoordinator] in
-            quickLookCoordinator.isVisible
-        }
-        keyMonitor.onQuickLookNavigate = { direction in
+        case .toggleQuickLook:
+            if let selectedObject { activateQuickLook(for: selectedObject) }
+        case .navigateQuickLook(let direction):
             navigateQuickLook(direction: direction)
+        case .openSelected:
+            openSelected()
+        case .passthrough:
+            break
         }
     }
 

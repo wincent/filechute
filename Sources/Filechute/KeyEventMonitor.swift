@@ -1,21 +1,20 @@
 import AppKit
+import FilechuteCore
 
 @MainActor
 final class KeyEventMonitor {
     private var monitor: Any?
-    var isEditing: Bool = false
-    var onStartRename: (() -> Void)?
-    var onCancelRename: (() -> Void)?
-    var isQuickLookVisible: (() -> Bool)?
-    var onQuickLookNavigate: ((_ direction: Int) -> Void)?
+    var context: () -> InteractionContext = { InteractionContext() }
+    var perform: (InteractionEffect) -> Void = { _ in }
 
     func install() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
             let keyCode = event.keyCode
+            let modifiers = event.modifierFlags
             let shouldConsume = MainActor.assumeIsolated {
-                self.shouldConsume(keyCode: keyCode)
+                self.handleKey(keyCode: keyCode, modifiers: modifiers)
             }
             return shouldConsume ? nil : event
         }
@@ -28,41 +27,28 @@ final class KeyEventMonitor {
         monitor = nil
     }
 
-    private func shouldConsume(keyCode: UInt16) -> Bool {
-        switch keyCode {
-        case 36: // Return
-            if isEditing { return false }
-            if isTextFieldFocused() { return false }
-            if let onStartRename {
-                onStartRename()
-                return true
-            }
-            return false
-
-        case 53: // Escape
-            if isEditing {
-                onCancelRename?()
-                return true
-            }
-            return false
-
-        case 125: // Down arrow
-            if isQuickLookVisible?() == true {
-                onQuickLookNavigate?(1)
-                return true
-            }
-            return false
-
-        case 126: // Up arrow
-            if isQuickLookVisible?() == true {
-                onQuickLookNavigate?(-1)
-                return true
-            }
-            return false
-
-        default:
-            return false
+    private func handleKey(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
+        let input: KeyInput? = switch keyCode {
+        case 36: .returnKey
+        case 53: .escape
+        case 125:
+            modifiers.contains(.command) ? .commandDown : .downArrow
+        case 126: .upArrow
+        default: nil
         }
+
+        guard let input else { return false }
+
+        var ctx = context()
+        if keyCode == 36 || keyCode == 53 {
+            ctx.isTextFieldFocused = isTextFieldFocused()
+        }
+
+        let effect = TableInteraction.reduce(key: input, context: ctx)
+        if effect == .passthrough { return false }
+
+        perform(effect)
+        return true
     }
 
     private func isTextFieldFocused() -> Bool {
