@@ -1,5 +1,6 @@
 import AppKit
 import FilechuteCore
+import QuickLook
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -10,6 +11,7 @@ struct ContentView: View {
     @State private var showColumnBrowser = true
     @State private var filteredObjects: [StoredObject]?
     @State private var searchText = ""
+    @State private var quickLookURL: URL?
 
     var selectedObject: StoredObject? {
         guard let id = selectedObjectId else { return nil }
@@ -53,7 +55,7 @@ struct ContentView: View {
             }
             .inspector(isPresented: $showInspector) {
                 if let selectedObject {
-                    DetailView(object: selectedObject, storeManager: storeManager)
+                    DetailView(object: selectedObject, storeManager: storeManager, quickLookURL: $quickLookURL)
                         .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
                 } else {
                     Text("No selection")
@@ -91,6 +93,7 @@ struct ContentView: View {
                 }
             }
         }
+        .quickLookPreview($quickLookURL)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
@@ -117,10 +120,10 @@ struct ContentView: View {
                let obj = storeManager.objects.first(where: { $0.id == id })
             {
                 Button("Open") {
-                    try? storeManager.openObject(obj)
+                    Task { try? await storeManager.openObject(obj) }
                 }
                 Button("Reveal in Finder") {
-                    try? storeManager.openObjectWith(obj)
+                    Task { try? await storeManager.openObjectWith(obj) }
                 }
                 Divider()
             }
@@ -136,7 +139,15 @@ struct ContentView: View {
         }
         .onKeyPress(.return) {
             if let selectedObject {
-                try? storeManager.openObject(selectedObject)
+                Task { try? await storeManager.openObject(selectedObject) }
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(.space) {
+            if let selectedObject {
+                let obj = selectedObject
+                Task { quickLookURL = try? await storeManager.temporaryCopyURL(for: obj) }
                 return .handled
             }
             return .ignored

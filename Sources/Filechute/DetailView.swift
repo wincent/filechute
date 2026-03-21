@@ -1,17 +1,15 @@
 import FilechuteCore
-import QuickLookUI
 import SwiftUI
 
 struct DetailView: View {
     let object: StoredObject
     var storeManager: StoreManager
+    @Binding var quickLookURL: URL?
     @State private var objectTags: [Tag] = []
     @State private var newTagName = ""
     @State private var versionHistory: [StoredObject] = []
     @State private var allExistingTags: [Tag] = []
     @State private var suggestedTags: [String] = []
-    @State private var previewURL: URL?
-    @State private var showPreview = false
 
     var body: some View {
         Form {
@@ -31,19 +29,19 @@ struct DetailView: View {
 
             Section("Actions") {
                 Button("Open") {
-                    try? storeManager.openObject(object)
+                    Task { try? await storeManager.openObject(object) }
                 }
                 .keyboardShortcut("o", modifiers: .command)
                 .accessibilityLabel("Open file in default application")
 
                 Button("Quick Look") {
-                    showQuickLook()
+                    Task { await showQuickLook() }
                 }
                 .keyboardShortcut(" ", modifiers: [])
                 .accessibilityLabel("Preview file with Quick Look")
 
                 Button("Reveal in Finder") {
-                    try? storeManager.openObjectWith(object)
+                    Task { try? await storeManager.openObjectWith(object) }
                 }
                 .accessibilityLabel("Show file in Finder")
             }
@@ -114,7 +112,7 @@ struct DetailView: View {
                             }
                             Spacer()
                             Button("Open") {
-                                try? storeManager.openObject(version)
+                                Task { try? await storeManager.openObject(version) }
                             }
                             .font(.caption)
                         }
@@ -133,17 +131,8 @@ struct DetailView: View {
         }
     }
 
-    private func showQuickLook() {
-        let ext = object.name.components(separatedBy: ".").count > 1
-            ? object.name.components(separatedBy: ".").last
-            : nil
-        if let url = try? storeManager.fileAccessService.openTemporaryCopy(
-            hash: object.hash,
-            name: object.name,
-            extension: ext
-        ) {
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-        }
+    private func showQuickLook() async {
+        quickLookURL = try? await storeManager.temporaryCopyURL(for: object)
     }
 
     private func loadTags() async {
@@ -159,9 +148,7 @@ struct DetailView: View {
     }
 
     private func loadSuggestions() async {
-        let ext = object.name.components(separatedBy: ".").count > 1
-            ? object.name.components(separatedBy: ".").last
-            : nil
+        let ext = await storeManager.fileExtension(for: object)
         let service = TagSuggestionService(database: storeManager.database)
         let suggested = (try? await service.suggestTags(forFilename: object.name, extension: ext)) ?? []
         let appliedNames = Set(objectTags.map { $0.name.lowercased() })

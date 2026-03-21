@@ -81,27 +81,35 @@ final class StoreManager {
         try await refresh()
     }
 
-    func openObject(_ object: StoredObject) throws {
-        let ext = object.name.components(separatedBy: ".").count > 1
-            ? object.name.components(separatedBy: ".").last
-            : nil
-        let url = try fileAccessService.openTemporaryCopy(
+    func fileExtension(for object: StoredObject) async -> String? {
+        if let ext = try? await database.getMetadata(objectId: object.id, key: "extension"), !ext.isEmpty {
+            return ext
+        }
+        let components = object.name.components(separatedBy: ".")
+        return components.count > 1 ? components.last : nil
+    }
+
+    private func extensionFromName(_ name: String) -> String? {
+        let components = name.components(separatedBy: ".")
+        return components.count > 1 ? components.last : nil
+    }
+
+    func temporaryCopyURL(for object: StoredObject) async throws -> URL {
+        let ext = await fileExtension(for: object)
+        return try fileAccessService.openTemporaryCopy(
             hash: object.hash,
             name: object.name,
             extension: ext
         )
+    }
+
+    func openObject(_ object: StoredObject) async throws {
+        let url = try await temporaryCopyURL(for: object)
         NSWorkspace.shared.open(url)
     }
 
-    func openObjectWith(_ object: StoredObject) throws {
-        let ext = object.name.components(separatedBy: ".").count > 1
-            ? object.name.components(separatedBy: ".").last
-            : nil
-        let url = try fileAccessService.openTemporaryCopy(
-            hash: object.hash,
-            name: object.name,
-            extension: ext
-        )
+    func openObjectWith(_ object: StoredObject) async throws {
+        let url = try await temporaryCopyURL(for: object)
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
