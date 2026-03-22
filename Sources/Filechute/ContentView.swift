@@ -21,6 +21,7 @@ struct ContentView: View {
     @FocusState private var isEditingFocused: Bool
     @State private var showColumnSettings = false
     @State private var keyMonitor = KeyEventMonitor()
+    @SceneStorage("columnBrowserHeight") private var columnBrowserHeight: Double = 180
 
     var selectedObject: StoredObject? {
         guard selection.count == 1, let id = selection.first else { return nil }
@@ -54,7 +55,9 @@ struct ContentView: View {
                         storeManager: storeManager,
                         filteredObjects: $filteredObjects
                     )
-                    Divider()
+                    .frame(height: columnBrowserHeight)
+
+                    ResizableDivider(height: $columnBrowserHeight, minHeight: 80, maxHeight: 400)
                 }
 
                 if storeManager.objects.isEmpty {

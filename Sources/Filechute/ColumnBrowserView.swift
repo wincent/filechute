@@ -35,7 +35,7 @@ struct ColumnBrowserView: View {
                 }
             }
         }
-        .frame(height: 180)
+        .frame(maxHeight: .infinity)
         .background(.background)
         .task {
             try? await storeManager.refresh()
