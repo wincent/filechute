@@ -60,13 +60,16 @@ struct ContentView: View {
                     ResizableDivider(height: $columnBrowserHeight, minHeight: 80, maxHeight: 400)
                 }
 
-                if storeManager.objects.isEmpty {
-                    emptyStateView
-                } else if displayedObjects.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    tableView
+                Group {
+                    if storeManager.objects.isEmpty {
+                        emptyStateView
+                    } else if displayedObjects.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        tableView
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .inspector(isPresented: $showInspector) {
                 if let selectedObject {
