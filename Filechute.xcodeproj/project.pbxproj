@@ -1,0 +1,386 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4A0000000000000000000030 /* FilechuteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000010; };
+		4A0000000000000000000031 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000011; };
+		4A0000000000000000000032 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000012; };
+		4A0000000000000000000033 /* ColumnBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000013; };
+		4A0000000000000000000034 /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000014; };
+		4A0000000000000000000035 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000015; };
+		4A0000000000000000000036 /* SearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000016; };
+		4A0000000000000000000037 /* TagAutocompleteField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000017; };
+		4A0000000000000000000038 /* KeyEventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000018; };
+		4A0000000000000000000039 /* QuickLookCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000019; };
+		4A000000000000000000003A /* ResizableDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001A; };
+		4A000000000000000000003B /* FilechuteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001B; };
+		4A000000000000000000003D /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001D; };
+		4A000000000000000000003E /* FilechuteCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4A0000000000000000000081; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4A0000000000000000000053 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4A0000000000000000000001;
+			proxyType = 1;
+			remoteGlobalIDString = 4A0000000000000000000050;
+			remoteInfo = Filechute;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		4A0000000000000000000010 /* FilechuteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilechuteApp.swift; sourceTree = "<group>"; };
+		4A0000000000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000012 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000013 /* ColumnBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnBrowserView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000014 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
+		4A0000000000000000000015 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+		4A0000000000000000000016 /* SearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchField.swift; sourceTree = "<group>"; };
+		4A0000000000000000000017 /* TagAutocompleteField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagAutocompleteField.swift; sourceTree = "<group>"; };
+		4A0000000000000000000018 /* KeyEventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventMonitor.swift; sourceTree = "<group>"; };
+		4A0000000000000000000019 /* QuickLookCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookCoordinator.swift; sourceTree = "<group>"; };
+		4A000000000000000000001A /* ResizableDivider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizableDivider.swift; sourceTree = "<group>"; };
+		4A000000000000000000001B /* FilechuteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilechuteUITests.swift; sourceTree = "<group>"; };
+		4A000000000000000000001C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = SOURCE_ROOT; };
+		4A000000000000000000001D /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		4A0000000000000000000020 /* Filechute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Filechute.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A0000000000000000000021 /* FilechuteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FilechuteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4A0000000000000000000042 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A000000000000000000003E /* FilechuteCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4A0000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				4A0000000000000000000003 /* Filechute */,
+				4A0000000000000000000004 /* UITests */,
+				4A0000000000000000000006 /* Resources */,
+				4A000000000000000000001C /* Info.plist */,
+				4A0000000000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4A0000000000000000000003 /* Filechute */ = {
+			isa = PBXGroup;
+			children = (
+				4A0000000000000000000010 /* FilechuteApp.swift */,
+				4A0000000000000000000011 /* ContentView.swift */,
+				4A0000000000000000000013 /* ColumnBrowserView.swift */,
+				4A0000000000000000000012 /* DetailView.swift */,
+				4A0000000000000000000018 /* KeyEventMonitor.swift */,
+				4A0000000000000000000014 /* LogWindow.swift */,
+				4A0000000000000000000019 /* QuickLookCoordinator.swift */,
+				4A000000000000000000001A /* ResizableDivider.swift */,
+				4A0000000000000000000016 /* SearchField.swift */,
+				4A0000000000000000000015 /* StoreManager.swift */,
+				4A0000000000000000000017 /* TagAutocompleteField.swift */,
+			);
+			path = Sources/Filechute;
+			sourceTree = SOURCE_ROOT;
+		};
+		4A0000000000000000000004 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				4A000000000000000000001B /* FilechuteUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = SOURCE_ROOT;
+		};
+		4A0000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4A0000000000000000000020 /* Filechute.app */,
+				4A0000000000000000000021 /* FilechuteUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4A0000000000000000000006 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4A000000000000000000001D /* AppIcon.icns */,
+			);
+			path = Resources;
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4A0000000000000000000050 /* Filechute */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A0000000000000000000061;
+			buildPhases = (
+				4A0000000000000000000040 /* Sources */,
+				4A0000000000000000000042 /* Frameworks */,
+				4A0000000000000000000043 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Filechute;
+			packageProductDependencies = (
+				4A0000000000000000000081 /* FilechuteCore */,
+			);
+			productName = Filechute;
+			productReference = 4A0000000000000000000020;
+			productType = "com.apple.product-type.application";
+		};
+		4A0000000000000000000051 /* FilechuteUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4A0000000000000000000062;
+			buildPhases = (
+				4A0000000000000000000041 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4A0000000000000000000052 /* PBXTargetDependency */,
+			);
+			name = FilechuteUITests;
+			productName = FilechuteUITests;
+			productReference = 4A0000000000000000000021;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4A0000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 4A0000000000000000000060;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4A0000000000000000000002;
+			packageReferences = (
+				4A0000000000000000000080 /* XCLocalSwiftPackageReference "." */,
+			);
+			productRefGroup = 4A0000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4A0000000000000000000050 /* Filechute */,
+				4A0000000000000000000051 /* FilechuteUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4A0000000000000000000043 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A000000000000000000003D /* AppIcon.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4A0000000000000000000040 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A0000000000000000000030 /* FilechuteApp.swift in Sources */,
+				4A0000000000000000000031 /* ContentView.swift in Sources */,
+				4A0000000000000000000032 /* DetailView.swift in Sources */,
+				4A0000000000000000000033 /* ColumnBrowserView.swift in Sources */,
+				4A0000000000000000000034 /* LogWindow.swift in Sources */,
+				4A0000000000000000000035 /* StoreManager.swift in Sources */,
+				4A0000000000000000000036 /* SearchField.swift in Sources */,
+				4A0000000000000000000037 /* TagAutocompleteField.swift in Sources */,
+				4A0000000000000000000038 /* KeyEventMonitor.swift in Sources */,
+				4A0000000000000000000039 /* QuickLookCoordinator.swift in Sources */,
+				4A000000000000000000003A /* ResizableDivider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4A0000000000000000000041 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A000000000000000000003B /* FilechuteUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4A0000000000000000000052 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4A0000000000000000000050 /* Filechute */;
+			targetProxy = 4A0000000000000000000053 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		4A0000000000000000000070 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		4A0000000000000000000071 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		4A0000000000000000000072 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wincent.Filechute;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		4A0000000000000000000073 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wincent.Filechute;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		4A0000000000000000000074 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wincent.FilechuteUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_TARGET_NAME = Filechute;
+			};
+			name = Debug;
+		};
+		4A0000000000000000000075 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wincent.FilechuteUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_TARGET_NAME = Filechute;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4A0000000000000000000060 /* Build configuration list for PBXProject "Filechute" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A0000000000000000000070 /* Debug */,
+				4A0000000000000000000071 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4A0000000000000000000061 /* Build configuration list for PBXNativeTarget "Filechute" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A0000000000000000000072 /* Debug */,
+				4A0000000000000000000073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4A0000000000000000000062 /* Build configuration list for PBXNativeTarget "FilechuteUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A0000000000000000000074 /* Debug */,
+				4A0000000000000000000075 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4A0000000000000000000080 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4A0000000000000000000081 /* FilechuteCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4A0000000000000000000080 /* XCLocalSwiftPackageReference "." */;
+			productName = FilechuteCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+
+	};
+	rootObject = 4A0000000000000000000001 /* Project object */;
+}

@@ -1,4 +1,4 @@
-.PHONY: build run app clean test
+.PHONY: build run app clean test uitest
 
 APP_NAME = Filechute
 APP_DIR = build/$(APP_NAME).app
@@ -21,6 +21,9 @@ app: build
 
 run: app
 	open $(APP_DIR)
+
+uitest:
+	xcodebuild -project Filechute.xcodeproj -scheme Filechute -configuration Debug test -only-testing:FilechuteUITests
 
 clean:
 	swift package clean

@@ -11,7 +11,8 @@ make run
 ## Tests
 
 ```
-make test
+make test    # unit tests (SPM)
+make uitest  # UI tests (Xcode)
 ```
 
 ## Formatting
