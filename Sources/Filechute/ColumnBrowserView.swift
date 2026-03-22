@@ -5,6 +5,7 @@ struct ColumnBrowserView: View {
     var storeManager: StoreManager
     @Binding var filteredObjects: [StoredObject]?
     @State private var columns: [BrowserColumn] = []
+    @FocusState private var focusedColumn: Int?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: true) {
@@ -13,6 +14,9 @@ struct ColumnBrowserView: View {
                     title: "Tags",
                     items: storeManager.allTags,
                     selection: columns.isEmpty ? nil : columns[0].selectedTagIds,
+                    columnIndex: 0,
+                    focusedColumn: $focusedColumn,
+                    columnCount: visibleColumnCount,
                     onSelect: { tagIds in
                         selectTags(tagIds, atLevel: 0)
                     }
@@ -26,6 +30,9 @@ struct ColumnBrowserView: View {
                             title: "Refine",
                             items: column.reachableTags,
                             selection: nextSelection(after: index),
+                            columnIndex: index + 1,
+                            focusedColumn: $focusedColumn,
+                            columnCount: visibleColumnCount,
                             onSelect: { tagIds in
                                 selectTags(tagIds, atLevel: index + 1)
                             }
@@ -84,6 +91,10 @@ struct ColumnBrowserView: View {
         }
         return ids
     }
+
+    private var visibleColumnCount: Int {
+        1 + columns.filter { !$0.reachableTags.isEmpty }.count
+    }
 }
 
 struct BrowserColumn: Identifiable {
@@ -101,6 +112,9 @@ struct BrowserColumnView: View {
     let title: String
     let items: [TagCount]
     let selection: Set<Int64>?
+    let columnIndex: Int
+    var focusedColumn: FocusState<Int?>.Binding
+    let columnCount: Int
     let onSelect: (Set<Int64>) -> Void
 
     @State private var localSelection: Set<Int64> = []
@@ -142,6 +156,17 @@ struct BrowserColumnView: View {
                 }
             }
             .listStyle(.plain)
+            .focused(focusedColumn, equals: columnIndex)
+            .onKeyPress(.leftArrow) {
+                guard columnIndex > 0 else { return .ignored }
+                focusedColumn.wrappedValue = columnIndex - 1
+                return .handled
+            }
+            .onKeyPress(.rightArrow) {
+                guard columnIndex < columnCount - 1 else { return .ignored }
+                focusedColumn.wrappedValue = columnIndex + 1
+                return .handled
+            }
             .onChange(of: localSelection) { _, newValue in
                 onSelect(newValue)
             }
