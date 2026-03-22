@@ -92,6 +92,11 @@ struct BrowserColumn: Identifiable {
     var reachableTags: [TagCount]
 }
 
+enum TagSortField {
+    case name
+    case count
+}
+
 struct BrowserColumnView: View {
     let title: String
     let items: [TagCount]
@@ -99,27 +104,32 @@ struct BrowserColumnView: View {
     let onSelect: (Set<Int64>) -> Void
 
     @State private var localSelection: Set<Int64> = []
+    @State private var sortField: TagSortField = .count
+    @State private var sortAscending = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(allLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(localSelection.isEmpty ? Color.accentColor.opacity(0.1) : .clear)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    localSelection = []
-                    onSelect([])
-                }
-                .accessibilityLabel("Show all, \(items.count) tags")
+            HStack(spacing: 0) {
+                Text(allLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        localSelection = []
+                        onSelect([])
+                    }
+                    .accessibilityLabel("Show all, \(items.count) tags")
+                sortMenu
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(localSelection.isEmpty ? Color.accentColor.opacity(0.1) : .clear)
 
             Divider()
 
             List(selection: $localSelection) {
-                ForEach(items, id: \.tag.id) { tagCount in
+                ForEach(sortedItems, id: \.tag.id) { tagCount in
                     HStack {
                         Text(tagCount.tag.name)
                         Spacer()
@@ -146,5 +156,40 @@ struct BrowserColumnView: View {
 
     private var allLabel: String {
         "All (\(items.count))"
+    }
+
+    private var sortedItems: [TagCount] {
+        items.sorted { a, b in
+            switch sortField {
+            case .name:
+                let cmp = a.tag.name.localizedStandardCompare(b.tag.name)
+                return sortAscending ? cmp == .orderedAscending : cmp == .orderedDescending
+            case .count:
+                if a.count != b.count {
+                    return sortAscending ? a.count < b.count : a.count > b.count
+                }
+                return a.tag.name.localizedStandardCompare(b.tag.name) == .orderedAscending
+            }
+        }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $sortField) {
+                Text("Name").tag(TagSortField.name)
+                Text("Count").tag(TagSortField.count)
+            }
+            Picker("Order", selection: $sortAscending) {
+                Text("Ascending").tag(true)
+                Text("Descending").tag(false)
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .accessibilityLabel("Sort order")
     }
 }
