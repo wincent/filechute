@@ -21,6 +21,12 @@
 		4A000000000000000000003B /* FilechuteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001B; };
 		4A000000000000000000003D /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001D; };
 		4A000000000000000000003E /* FilechuteCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4A0000000000000000000081; };
+		4A000000000000000000003F /* BulkTagEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001E; };
+		4A0000000000000000000090 /* PreviewGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001F; };
+		4A0000000000000000000091 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000022; };
+		4A0000000000000000000092 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000023; };
+		4A0000000000000000000093 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000024; };
+		4A0000000000000000000094 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000025; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +56,12 @@
 		4A000000000000000000001D /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		4A0000000000000000000020 /* Filechute.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Filechute.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A0000000000000000000021 /* FilechuteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FilechuteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A000000000000000000001E /* BulkTagEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkTagEditView.swift; sourceTree = "<group>"; };
+		4A000000000000000000001F /* PreviewGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGridView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000022 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000023 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000024 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+		4A0000000000000000000025 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,17 +90,23 @@
 		4A0000000000000000000003 /* Filechute */ = {
 			isa = PBXGroup;
 			children = (
-				4A0000000000000000000010 /* FilechuteApp.swift */,
-				4A0000000000000000000011 /* ContentView.swift */,
+				4A000000000000000000001E /* BulkTagEditView.swift */,
 				4A0000000000000000000013 /* ColumnBrowserView.swift */,
+				4A0000000000000000000011 /* ContentView.swift */,
 				4A0000000000000000000012 /* DetailView.swift */,
+				4A0000000000000000000010 /* FilechuteApp.swift */,
 				4A0000000000000000000018 /* KeyEventMonitor.swift */,
 				4A0000000000000000000014 /* LogWindow.swift */,
+				4A000000000000000000001F /* PreviewGridView.swift */,
 				4A0000000000000000000019 /* QuickLookCoordinator.swift */,
 				4A000000000000000000001A /* ResizableDivider.swift */,
 				4A0000000000000000000016 /* SearchField.swift */,
+				4A0000000000000000000022 /* SidebarView.swift */,
+				4A0000000000000000000023 /* StatusBarView.swift */,
 				4A0000000000000000000015 /* StoreManager.swift */,
 				4A0000000000000000000017 /* TagAutocompleteField.swift */,
+				4A0000000000000000000024 /* ThumbnailCache.swift */,
+				4A0000000000000000000025 /* TrashView.swift */,
 			);
 			path = Sources/Filechute;
 			sourceTree = SOURCE_ROOT;
@@ -215,6 +233,12 @@
 				4A0000000000000000000038 /* KeyEventMonitor.swift in Sources */,
 				4A0000000000000000000039 /* QuickLookCoordinator.swift in Sources */,
 				4A000000000000000000003A /* ResizableDivider.swift in Sources */,
+				4A000000000000000000003F /* BulkTagEditView.swift in Sources */,
+				4A0000000000000000000090 /* PreviewGridView.swift in Sources */,
+				4A0000000000000000000091 /* SidebarView.swift in Sources */,
+				4A0000000000000000000092 /* StatusBarView.swift in Sources */,
+				4A0000000000000000000093 /* ThumbnailCache.swift in Sources */,
+				4A0000000000000000000094 /* TrashView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
