@@ -11,6 +11,7 @@ public struct StoredObject: Identifiable, Sendable, Hashable {
   public let lastOpenedAt: Date?
   public let fileExtension: String
   public let notes: String?
+  public var sizeBytes: UInt64
 
   public var effectiveModifiedAt: Date { modifiedAt ?? createdAt }
   public var effectiveLastOpenedAt: Date { lastOpenedAt ?? .distantPast }
@@ -27,7 +28,8 @@ public struct StoredObject: Identifiable, Sendable, Hashable {
     modifiedAt: Date? = nil,
     lastOpenedAt: Date? = nil,
     fileExtension: String = "",
-    notes: String? = nil
+    notes: String? = nil,
+    sizeBytes: UInt64 = 0
   ) {
     self.id = id
     self.hash = hash
@@ -38,6 +40,7 @@ public struct StoredObject: Identifiable, Sendable, Hashable {
     self.lastOpenedAt = lastOpenedAt
     self.fileExtension = fileExtension
     self.notes = notes
+    self.sizeBytes = sizeBytes
   }
 }
 

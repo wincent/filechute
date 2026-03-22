@@ -25,6 +25,7 @@ struct ContentView: View {
   @SceneStorage("columnBrowserHeight") private var columnBrowserHeight: Double = 180
   @SceneStorage("viewMode") private var viewMode: String = "table"
   @State private var gridColumnCount = 4
+  @SceneStorage("thumbnailSize") private var thumbnailSize: Double = 128
 
   var selectedObject: StoredObject? {
     guard selection.count == 1, let id = selection.first else { return nil }
@@ -76,6 +77,7 @@ struct ContentView: View {
               objects: displayedObjects,
               selection: $selection,
               columnCount: $gridColumnCount,
+              thumbnailSize: thumbnailSize,
               onOpen: { obj in
                 Task { try? await storeManager.openObject(obj) }
               },
@@ -88,6 +90,16 @@ struct ContentView: View {
           }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        if !storeManager.objects.isEmpty {
+          StatusBarView(
+            objects: displayedObjects,
+            selection: selection,
+            sizesByObject: storeManager.sizesByObject,
+            isGridMode: viewMode == "preview",
+            thumbnailSize: $thumbnailSize
+          )
+        }
       }
       .inspector(isPresented: $showInspector) {
         if let selectedObject {
@@ -269,6 +281,19 @@ struct ContentView: View {
       }
       .width(min: 60, ideal: 120, max: 180)
       .customizationID("type")
+
+      TableColumn("Size", value: \StoredObject.sizeBytes) { obj in
+        if obj.sizeBytes > 0 {
+          Text(
+            ByteCountFormatter.string(
+              fromByteCount: Int64(obj.sizeBytes), countStyle: .file
+            )
+          )
+          .foregroundStyle(.secondary)
+        }
+      }
+      .width(min: 60, ideal: 90, max: 140)
+      .customizationID("size")
 
       TableColumn("Date Added", value: \StoredObject.createdAt) { obj in
         Text(obj.createdAt, format: .dateTime.month().day().year().hour().minute())
@@ -470,6 +495,7 @@ struct ColumnSettingsView: View {
       Text("Visible Columns")
         .font(.headline)
       Toggle("Type", isOn: visibilityBinding("type"))
+      Toggle("Size", isOn: visibilityBinding("size"))
       Toggle("Date Added", isOn: visibilityBinding("dateAdded"))
       Toggle("Last Modified", isOn: visibilityBinding("lastModified"))
       Toggle("Last Opened", isOn: visibilityBinding("lastOpened"))

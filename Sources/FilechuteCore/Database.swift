@@ -481,6 +481,18 @@ public actor Database {
     )
   }
 
+  public func allSizes() throws -> [Int64: UInt64] {
+    let rows: [(Int64, UInt64)] = try query(
+      "SELECT object_id, value FROM metadata WHERE key = 'size_bytes' AND value IS NOT NULL",
+      read: { stmt in
+        let objectId = sqlite3_column_int64(stmt, 0)
+        let value = String(cString: sqlite3_column_text(stmt, 1))
+        return (objectId, UInt64(value) ?? 0)
+      }
+    )
+    return Dictionary(rows, uniquingKeysWith: { _, last in last })
+  }
+
   public func allExtensions() throws -> [Int64: String] {
     let rows: [(Int64, String)] = try query(
       "SELECT object_id, value FROM metadata WHERE key = 'extension' AND value IS NOT NULL",

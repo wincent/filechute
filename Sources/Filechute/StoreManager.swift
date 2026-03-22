@@ -9,6 +9,7 @@ final class StoreManager {
   private(set) var allTags: [TagCount] = []
   private(set) var deletedObjects: [StoredObject] = []
   private(set) var tagNamesByObject: [Int64: [String]] = [:]
+  private(set) var sizesByObject: [Int64: UInt64] = [:]
 
   nonisolated let objectStore: ObjectStore
   nonisolated let database: Database
@@ -39,6 +40,10 @@ final class StoreManager {
     deletedObjects = try await database.allObjects(includeDeleted: true)
       .filter { $0.deletedAt != nil }
     tagNamesByObject = try await database.allTagNamesByObject()
+    sizesByObject = try await database.allSizes()
+    for i in objects.indices {
+      objects[i].sizeBytes = sizesByObject[objects[i].id] ?? 0
+    }
     Log.debug(
       "Refreshed: \(objects.count) objects, \(allTags.count) tags, \(deletedObjects.count) deleted",
       category: .ui

@@ -7,52 +7,67 @@ struct PreviewGridView: View {
   var objects: [StoredObject]
   @Binding var selection: Set<Int64>
   @Binding var columnCount: Int
+  var thumbnailSize: Double
   var onOpen: (StoredObject) -> Void
   var onQuickLook: (StoredObject) -> Void
   @State private var anchorId: Int64?
   @FocusState private var isFocused: Bool
 
-  private let columns = [
-    GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 16)
-  ]
+  private var cellWidth: CGFloat { thumbnailSize + 16 }
+
+  private var columns: [GridItem] {
+    [GridItem(.adaptive(minimum: cellWidth, maximum: cellWidth + 60), spacing: 16)]
+  }
 
   var body: some View {
     GeometryReader { geometry in
-      ScrollView {
-        LazyVGrid(columns: columns, spacing: 16) {
-          ForEach(objects) { object in
-            PreviewGridCell(
-              object: object,
-              thumbnailURL: storeManager.thumbnailURL(for: object),
-              isSelected: selection.contains(object.id)
-            )
-            .id(object.id)
-            .gesture(
-              TapGesture(count: 2).onEnded {
-                onOpen(object)
-              }
-            )
-            .simultaneousGesture(
-              TapGesture().onEnded {
-                handleClick(object: object)
-                isFocused = true
-              }
-            )
-            .contextMenu {
-              Button("Open") { onOpen(object) }
-              Button("Quick Look") { onQuickLook(object) }
-              Divider()
-              Button("Delete", role: .destructive) {
-                Task { try? await storeManager.deleteObject(object.id) }
+      ScrollViewReader { proxy in
+        ScrollView {
+          LazyVGrid(columns: columns, spacing: 16) {
+            ForEach(objects) { object in
+              PreviewGridCell(
+                object: object,
+                thumbnailURL: storeManager.thumbnailURL(for: object),
+                isSelected: selection.contains(object.id),
+                size: thumbnailSize
+              )
+              .id(object.id)
+              .gesture(
+                TapGesture(count: 2).onEnded {
+                  onOpen(object)
+                }
+              )
+              .simultaneousGesture(
+                TapGesture().onEnded {
+                  handleClick(object: object)
+                  isFocused = true
+                }
+              )
+              .contextMenu {
+                Button("Open") { onOpen(object) }
+                Button("Quick Look") { onQuickLook(object) }
+                Divider()
+                Button("Delete", role: .destructive) {
+                  Task { try? await storeManager.deleteObject(object.id) }
+                }
               }
             }
           }
+          .padding()
         }
-        .padding()
+        .onChange(of: anchorId) { _, newId in
+          if let newId {
+            withAnimation {
+              proxy.scrollTo(newId)
+            }
+          }
+        }
       }
       .onChange(of: geometry.size.width, initial: true) { _, width in
-        let usable = width - 32
-        columnCount = max(1, Int((usable + 16) / (140 + 16)))
+        updateColumnCount(for: width)
+      }
+      .onChange(of: thumbnailSize) { _, _ in
+        updateColumnCount(for: geometry.size.width)
       }
     }
     .focusable()
@@ -82,6 +97,11 @@ struct PreviewGridView: View {
       selection = Set(objects.map(\.id))
       return .handled
     }
+  }
+
+  private func updateColumnCount(for width: CGFloat) {
+    let usable = width - 32
+    columnCount = max(1, Int((usable + 16) / (cellWidth + 16)))
   }
 
   private func handleClick(object: StoredObject) {
@@ -136,11 +156,12 @@ struct PreviewGridCell: View {
   let object: StoredObject
   let thumbnailURL: URL
   let isSelected: Bool
+  var size: Double = 128
 
   var body: some View {
     VStack(spacing: 6) {
       thumbnailView
-        .frame(width: 128, height: 128)
+        .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
 
@@ -148,7 +169,7 @@ struct PreviewGridCell: View {
         .font(.caption)
         .lineLimit(2)
         .multilineTextAlignment(.center)
-        .frame(width: 128)
+        .frame(width: size)
     }
     .padding(8)
     .background(

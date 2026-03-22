@@ -206,6 +206,28 @@ struct DatabaseObjectTests {
     #expect(obj.lastOpenedAt == nil)
   }
 
+  @Test("sizeBytes defaults to zero")
+  func sizeBytesDefault() {
+    let obj = StoredObject(id: 1, hash: sampleHash(1), name: "test", createdAt: Date())
+    #expect(obj.sizeBytes == 0)
+  }
+
+  @Test("sizeBytes can be set via initializer")
+  func sizeBytesInit() {
+    let obj = StoredObject(
+      id: 1, hash: sampleHash(1), name: "test", createdAt: Date(), sizeBytes: 4096
+    )
+    #expect(obj.sizeBytes == 4096)
+  }
+
+  @Test("sizeBytes is mutable")
+  func sizeBytesAssignment() {
+    var obj = StoredObject(id: 1, hash: sampleHash(1), name: "test", createdAt: Date())
+    #expect(obj.sizeBytes == 0)
+    obj.sizeBytes = 1_048_576
+    #expect(obj.sizeBytes == 1_048_576)
+  }
+
   @Test("Newly inserted object has nil notes")
   func notesDefaultNil() async throws {
     let db = try makeDB()
@@ -605,6 +627,34 @@ struct DatabaseMetadataTests {
     #expect(extensions[id1] == "pdf")
     #expect(extensions[id2] == "jpg")
     #expect(extensions[id3] == nil)
+  }
+
+  @Test("allSizes returns size metadata by object")
+  func allSizes() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "small")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "big")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "nosize")
+
+    try await db.setMetadata(objectId: id1, key: "size_bytes", value: "1024")
+    try await db.setMetadata(objectId: id2, key: "size_bytes", value: "5242880")
+    try await db.setMetadata(objectId: id3, key: "extension", value: "txt")
+
+    let sizes = try await db.allSizes()
+    #expect(sizes.count == 2)
+    #expect(sizes[id1] == 1024)
+    #expect(sizes[id2] == 5_242_880)
+    #expect(sizes[id3] == nil)
+  }
+
+  @Test("allSizes handles invalid values gracefully")
+  func allSizesInvalid() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "bad")
+    try await db.setMetadata(objectId: id, key: "size_bytes", value: "notanumber")
+
+    let sizes = try await db.allSizes()
+    #expect(sizes[id] == 0)
   }
 }
 
