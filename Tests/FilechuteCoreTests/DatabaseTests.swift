@@ -171,13 +171,19 @@ struct DatabaseObjectTests {
     #expect(obj!.fileExtension == "")
   }
 
-  @Test("fileTypeDisplay returns uppercased extension")
+  @Test("fileTypeDisplay uses UTType localized description")
   func fileTypeDisplay() {
     let obj = StoredObject(
       id: 1, hash: sampleHash(1), name: "doc", createdAt: Date(), fileExtension: "pdf")
-    #expect(obj.fileTypeDisplay == "PDF")
+    #expect(obj.fileTypeDisplay == "PDF document")
 
-    let noExt = StoredObject(id: 2, hash: sampleHash(2), name: "readme", createdAt: Date())
+    let jpg = StoredObject(
+      id: 2, hash: sampleHash(2), name: "photo", createdAt: Date(), fileExtension: "jpg")
+    let jpeg = StoredObject(
+      id: 3, hash: sampleHash(3), name: "photo", createdAt: Date(), fileExtension: "jpeg")
+    #expect(jpg.fileTypeDisplay == jpeg.fileTypeDisplay)
+
+    let noExt = StoredObject(id: 4, hash: sampleHash(4), name: "readme", createdAt: Date())
     #expect(noExt.fileTypeDisplay == "")
   }
 

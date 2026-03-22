@@ -33,7 +33,8 @@ struct TagSuggestionServiceTests {
 
     let suggestions = try await service.suggestTags(forFilename: "photo.jpg", extension: "jpg")
     #expect(suggestions.contains("image"))
-    #expect(suggestions.contains("jpg"))
+    #expect(suggestions.contains("jpeg"))
+    #expect(!suggestions.contains("jpg"))
   }
 
   @Test("Matches existing tags from filename tokens")

@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 public struct TagSuggestionService: Sendable {
   public let database: Database
@@ -14,7 +15,9 @@ public struct TagSuggestionService: Sendable {
     var suggestions: [String] = []
 
     if let ext, !ext.isEmpty {
-      suggestions.append(ext.lowercased())
+      let utType = UTType(filenameExtension: ext)
+      let normalized = utType?.preferredFilenameExtension ?? ext
+      suggestions.append(normalized.lowercased())
     }
 
     let nameWithoutExt: String
@@ -65,22 +68,16 @@ public struct TagSuggestionService: Sendable {
   }
 
   private func mimeCategory(forExtension ext: String?) -> String? {
-    guard let ext = ext?.lowercased() else { return nil }
-    let imageExts: Set = [
-      "jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "heic", "heif", "svg",
-    ]
-    let docExts: Set = ["pdf", "doc", "docx", "txt", "rtf", "odt", "pages"]
-    let spreadsheetExts: Set = ["xls", "xlsx", "csv", "numbers", "ods"]
-    let audioExts: Set = ["mp3", "wav", "aac", "flac", "m4a", "ogg", "wma"]
-    let videoExts: Set = ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm"]
-    let archiveExts: Set = ["zip", "tar", "gz", "bz2", "7z", "rar", "dmg"]
-
-    if imageExts.contains(ext) { return "image" }
-    if docExts.contains(ext) { return "document" }
-    if spreadsheetExts.contains(ext) { return "spreadsheet" }
-    if audioExts.contains(ext) { return "audio" }
-    if videoExts.contains(ext) { return "video" }
-    if archiveExts.contains(ext) { return "archive" }
+    guard let ext, let utType = UTType(filenameExtension: ext) else { return nil }
+    if utType.conforms(to: .image) { return "image" }
+    if utType.conforms(to: .pdf) || utType.conforms(to: .text) || utType.conforms(to: .presentation)
+    {
+      return "document"
+    }
+    if utType.conforms(to: .spreadsheet) { return "spreadsheet" }
+    if utType.conforms(to: .audio) { return "audio" }
+    if utType.conforms(to: .movie) || utType.conforms(to: .video) { return "video" }
+    if utType.conforms(to: .archive) { return "archive" }
     return nil
   }
 }
