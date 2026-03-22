@@ -11,6 +11,16 @@ final class KeyEventMonitor {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+
+            if event.charactersIgnoringModifiers == "f"
+                && event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
+            {
+                MainActor.assumeIsolated {
+                    SearchField.focus()
+                }
+                return nil
+            }
+
             let keyCode = event.keyCode
             let modifiers = event.modifierFlags
             let shouldConsume = MainActor.assumeIsolated {
@@ -55,4 +65,5 @@ final class KeyEventMonitor {
         guard let firstResponder = NSApp.keyWindow?.firstResponder else { return false }
         return firstResponder is NSTextView
     }
+
 }

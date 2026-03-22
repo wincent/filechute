@@ -50,7 +50,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if showColumnBrowser && !storeManager.allTags.isEmpty {
+                if showColumnBrowser {
                     ColumnBrowserView(
                         storeManager: storeManager,
                         filteredObjects: $filteredObjects
@@ -94,7 +94,6 @@ struct ContentView: View {
                         .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
                 }
             }
-            .searchable(text: $searchText, prompt: "Search by name or tag")
             .navigationTitle("Filechute")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -131,6 +130,10 @@ struct ContentView: View {
                         Label("Inspector", systemImage: "sidebar.right")
                     }
                     .accessibilityLabel("Toggle inspector panel")
+                }
+                ToolbarItem(placement: .principal) {
+                    SearchField(text: $searchText)
+                        .frame(width: 300)
                 }
             }
         }

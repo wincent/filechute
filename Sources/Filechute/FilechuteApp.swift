@@ -6,6 +6,9 @@ struct FilechuteApp: App {
         WindowGroup {
             RootView()
         }
+        .commands {
+            CommandGroup(replacing: .textEditing) {}
+        }
     }
 }
 
@@ -36,7 +39,7 @@ struct RootView: View {
                     in: .userDomainMask
                 ).first!
                 let storeRoot = appSupport
-                    .appendingPathComponent("com.wincent.Filechute")
+                    .appendingPathComponent("dev.wincent.Filechute")
                     .appendingPathComponent("stores")
                     .appendingPathComponent("default")
                 let manager = try StoreManager(storeRoot: storeRoot)

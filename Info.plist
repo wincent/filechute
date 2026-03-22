@@ -5,7 +5,7 @@
 	<key>CFBundleExecutable</key>
 	<string>Filechute</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.wincent.Filechute</string>
+	<string>dev.wincent.Filechute</string>
 	<key>CFBundleName</key>
 	<string>Filechute</string>
 	<key>CFBundleDisplayName</key>
