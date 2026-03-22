@@ -1,5 +1,8 @@
 #!/bin/bash
 
-set -euo pipefail
+status=0
 
-exec swift-format format --in-place --recursive Sources/ Tests/
+swift-format format --in-place --recursive Sources/ Tests/ || status=1
+dprint fmt || status=1
+
+exit $status

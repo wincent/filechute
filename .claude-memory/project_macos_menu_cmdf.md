@@ -15,6 +15,7 @@ to show a Find bar, fails, and beeps.
 determined the NSTableView was handling the action.
 
 **How to apply:** The working solution is:
+
 1. `CommandGroup(replacing: .textEditing) {}` in the app to remove the
    Find menu entirely
 2. Handle Cmd+F in the event monitor using

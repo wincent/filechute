@@ -1,5 +1,8 @@
 #!/bin/bash
 
-set -euo pipefail
+status=0
 
-exec swift-format lint --recursive Sources/ Tests/
+swift-format lint --recursive Sources/ Tests/ || status=1
+dprint check || status=1
+
+exit $status
