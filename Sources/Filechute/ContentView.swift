@@ -209,7 +209,7 @@ struct ContentView: View {
         Text(obj.fileTypeDisplay)
           .foregroundStyle(.secondary)
       }
-      .width(min: 40, ideal: 60, max: 80)
+      .width(min: 60, ideal: 120, max: 180)
       .customizationID("type")
 
       TableColumn("Date Added", value: \StoredObject.createdAt) { obj in
