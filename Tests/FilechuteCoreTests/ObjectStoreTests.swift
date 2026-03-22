@@ -355,6 +355,96 @@ struct ObjectStoreTests {
     }
   }
 
+  @Test("setReadOnly makes files and directory read-only")
+  func setReadOnly() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("lock me down".utf8)
+      let (hash, _) = try store.store(data: data)
+      try store.storeThumbnail(data: Data("thumb".utf8), for: hash)
+      try store.storeInfo(Data("{}".utf8), for: hash)
+
+      try store.setReadOnly(for: hash)
+
+      let fm = FileManager.default
+      for name in ["data.bin", "thumbnail.png", "info.json"] {
+        let fileURL = store.url(for: hash).appendingPathComponent(name)
+        let attrs = try fm.attributesOfItem(atPath: fileURL.path)
+        let perms = attrs[.posixPermissions] as? Int
+        #expect(perms == 0o444, "Expected 0444 for \(name), got \(String(perms ?? 0, radix: 8))")
+      }
+
+      let dirAttrs = try fm.attributesOfItem(atPath: store.url(for: hash).path)
+      let dirPerms = dirAttrs[.posixPermissions] as? Int
+      #expect(dirPerms == 0o555)
+    }
+  }
+
+  @Test("setReadOnly files are not writable")
+  func setReadOnlyPreventsWrite() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("immutable content".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      try store.setReadOnly(for: hash)
+
+      #expect(throws: (any Error).self) {
+        try Data("tampered".utf8).write(to: store.dataURL(for: hash))
+      }
+    }
+  }
+
+  @Test("setReadOnly prevents renaming files")
+  func setReadOnlyPreventsRename() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("no rename".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      try store.setReadOnly(for: hash)
+
+      let src = store.dataURL(for: hash)
+      let dst = store.url(for: hash).appendingPathComponent("renamed.bin")
+      #expect(throws: (any Error).self) {
+        try FileManager.default.moveItem(at: src, to: dst)
+      }
+    }
+  }
+
+  @Test("setWritable restores directory write permission")
+  func setWritable() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("writable again".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      try store.setReadOnly(for: hash)
+      try store.setWritable(for: hash)
+
+      let fm = FileManager.default
+      let dirAttrs = try fm.attributesOfItem(atPath: store.url(for: hash).path)
+      let dirPerms = dirAttrs[.posixPermissions] as? Int
+      #expect(dirPerms == 0o755)
+    }
+  }
+
+  @Test("Remove works on read-only objects")
+  func removeReadOnly() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("remove me".utf8)
+      let (hash, _) = try store.store(data: data)
+      try store.storeThumbnail(data: Data("thumb".utf8), for: hash)
+
+      try store.setReadOnly(for: hash)
+      #expect(store.exists(hash))
+
+      try store.remove(hash)
+      #expect(!store.exists(hash))
+    }
+  }
+
   @Test("Store from file creates directory with data.bin")
   func storeFileCreatesDirectory() throws {
     try withTempDir { dir in

@@ -98,6 +98,9 @@ public struct ObjectStore: Sendable {
     guard FileManager.default.fileExists(atPath: objectDir.path) else {
       throw ObjectStoreError.objectNotFound(hash)
     }
+    try? FileManager.default.setAttributes(
+      [.posixPermissions: 0o755], ofItemAtPath: objectDir.path
+    )
     try FileManager.default.removeItem(at: objectDir)
     Log.debug("Removed blob \(hash.hexString.prefix(8))", category: .objectStore)
   }
@@ -117,6 +120,26 @@ public struct ObjectStore: Sendable {
       throw ObjectStoreError.objectNotFound(hash)
     }
     return try Data(contentsOf: thumbURL)
+  }
+
+  public func setReadOnly(for hash: ContentHash) throws {
+    let objectDir = url(for: hash)
+    let fm = FileManager.default
+    let contents = try fm.contentsOfDirectory(
+      at: objectDir,
+      includingPropertiesForKeys: nil
+    )
+    for fileURL in contents {
+      try fm.setAttributes([.posixPermissions: 0o444], ofItemAtPath: fileURL.path)
+    }
+    try fm.setAttributes([.posixPermissions: 0o555], ofItemAtPath: objectDir.path)
+  }
+
+  public func setWritable(for hash: ContentHash) throws {
+    let objectDir = url(for: hash)
+    try FileManager.default.setAttributes(
+      [.posixPermissions: 0o755], ofItemAtPath: objectDir.path
+    )
   }
 
   public func storeInfo(_ data: Data, for hash: ContentHash) throws {

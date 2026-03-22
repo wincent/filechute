@@ -259,6 +259,26 @@ struct IngestionServiceTests {
     }
   }
 
+  @Test("Ingestion sets stored files to read-only")
+  func setsReadOnly() async throws {
+    try await withTestStore { store, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "doc.txt", contents: "read only test")
+      let obj = try await service.ingest(fileAt: fileURL)
+
+      let fm = FileManager.default
+      let dataAttrs = try fm.attributesOfItem(atPath: store.dataURL(for: obj.hash).path)
+      #expect(dataAttrs[.posixPermissions] as? Int == 0o444)
+
+      let infoAttrs = try fm.attributesOfItem(atPath: store.infoURL(for: obj.hash).path)
+      #expect(infoAttrs[.posixPermissions] as? Int == 0o444)
+    }
+  }
+
   @Test("Ingestion of file without extension")
   func noExtension() async throws {
     try await withTestStore { _, db, service in

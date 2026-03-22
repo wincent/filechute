@@ -32,6 +32,7 @@ public struct IngestionService: Sendable {
     )
 
     await thumbnailService.generateThumbnail(for: sourceURL, hash: hash)
+    try? objectStore.setReadOnly(for: hash)
 
     if let existing = try await database.getObject(byHash: hash) {
       Log.debug(
@@ -95,6 +96,7 @@ public struct IngestionService: Sendable {
     )
 
     await thumbnailService.generateThumbnail(for: sourceURL, hash: newHash)
+    try? objectStore.setReadOnly(for: newHash)
 
     if newHash == existing.hash {
       Log.debug("Content unchanged for object \(objectId)", category: .ingestion)

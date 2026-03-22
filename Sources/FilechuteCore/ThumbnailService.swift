@@ -62,7 +62,9 @@ public struct ThumbnailService: Sendable {
         try FileManager.default.removeItem(at: tmpFile)
       }
       try FileManager.default.createSymbolicLink(at: tmpFile, withDestinationURL: dataURL)
+      try? objectStore.setWritable(for: hash)
       await generateThumbnail(for: tmpFile, hash: hash)
+      try? objectStore.setReadOnly(for: hash)
       try? FileManager.default.removeItem(at: tmpDir)
     } catch {
       try? FileManager.default.removeItem(at: tmpDir)
