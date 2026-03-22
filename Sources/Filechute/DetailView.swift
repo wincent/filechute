@@ -12,6 +12,7 @@ struct DetailView: View {
   @State private var suggestedTags: [String] = []
   @State private var renameHistory: [RenameEntry] = []
   @State private var showRenameHistory = false
+  @State private var notesText = ""
 
   var body: some View {
     Form {
@@ -61,6 +62,19 @@ struct DetailView: View {
           Task { try? await storeManager.openObjectWith(object) }
         }
         .accessibilityLabel("Show file in Finder")
+      }
+
+      Section("Notes") {
+        TextEditor(text: $notesText)
+          .font(.body)
+          .frame(minHeight: 60)
+          .onChange(of: notesText) {
+            let trimmed = notesText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = trimmed.isEmpty ? nil : notesText
+            Task {
+              try? await storeManager.updateNotes(object.id, notes: value)
+            }
+          }
       }
 
       Section("Tags") {
@@ -141,6 +155,7 @@ struct DetailView: View {
     }
     .formStyle(.grouped)
     .task(id: "\(object.id)-\(object.name)-\(object.modifiedAt?.timeIntervalSince1970 ?? 0)") {
+      notesText = object.notes ?? ""
       await loadTags()
       await loadVersionHistory()
       await loadExistingTags()

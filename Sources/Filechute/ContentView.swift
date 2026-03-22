@@ -42,6 +42,7 @@ struct ContentView: View {
         return terms.allSatisfy { term in
           obj.name.lowercased().contains(term)
             || tagNames.contains { $0.lowercased().contains(term) }
+            || (obj.notes?.lowercased().contains(term) ?? false)
         }
       }
     }

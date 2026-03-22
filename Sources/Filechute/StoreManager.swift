@@ -103,6 +103,11 @@ final class StoreManager {
     try await refresh()
   }
 
+  func updateNotes(_ objectId: Int64, notes: String?) async throws {
+    try await database.updateNotes(id: objectId, notes: notes)
+    try await refresh()
+  }
+
   func renameObject(_ objectId: Int64, to name: String) async throws {
     try await database.renameObject(id: objectId, newName: name)
     try await refresh()

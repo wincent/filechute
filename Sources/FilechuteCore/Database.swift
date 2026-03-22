@@ -96,6 +96,7 @@ public actor Database {
         ''
     ) WHERE file_extension = ''
     """,
+    "ALTER TABLE objects ADD COLUMN notes TEXT",
   ]
 
   private static func initSchema(db: OpaquePointer) throws {
@@ -138,7 +139,7 @@ public actor Database {
 
   public func getObject(byId id: Int64) throws -> StoredObject? {
     try query(
-      "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE id = ?",
+      "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension, notes FROM objects WHERE id = ?",
       bind: { stmt in sqlite3_bind_int64(stmt, 1, id) },
       read: readObject
     ).first
@@ -146,7 +147,7 @@ public actor Database {
 
   public func getObject(byHash hash: ContentHash) throws -> StoredObject? {
     try query(
-      "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE hash = ?",
+      "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension, notes FROM objects WHERE hash = ?",
       bind: { stmt in sqlite3_bind_text(stmt, 1, hash.hexString, -1, SQLITE_TRANSIENT) },
       read: readObject
     ).first
@@ -155,8 +156,8 @@ public actor Database {
   public func allObjects(includeDeleted: Bool = false) throws -> [StoredObject] {
     let sql =
       includeDeleted
-      ? "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects ORDER BY name"
-      : "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension FROM objects WHERE deleted_at IS NULL ORDER BY name"
+      ? "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension, notes FROM objects ORDER BY name"
+      : "SELECT id, hash, name, created_at, deleted_at, modified_at, last_opened_at, file_extension, notes FROM objects WHERE deleted_at IS NULL ORDER BY name"
     return try query(sql, read: readObject)
   }
 
@@ -215,6 +216,21 @@ public actor Database {
       bind: { stmt in
         sqlite3_bind_int64(stmt, 1, Int64(Date().timeIntervalSince1970))
         sqlite3_bind_int64(stmt, 2, id)
+      }
+    )
+  }
+
+  public func updateNotes(id: Int64, notes: String?) throws {
+    try update(
+      "UPDATE objects SET notes = ?, modified_at = ? WHERE id = ?",
+      bind: { stmt in
+        if let notes {
+          sqlite3_bind_text(stmt, 1, notes, -1, SQLITE_TRANSIENT)
+        } else {
+          sqlite3_bind_null(stmt, 1)
+        }
+        sqlite3_bind_int64(stmt, 2, Int64(Date().timeIntervalSince1970))
+        sqlite3_bind_int64(stmt, 3, id)
       }
     )
   }
@@ -372,7 +388,7 @@ public actor Database {
   public func objects(withTagId tagId: Int64) throws -> [StoredObject] {
     try query(
       """
-      SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
+      SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
       FROM objects o
       JOIN taggings tg ON tg.object_id = o.id
       WHERE tg.tag_id = ? AND o.deleted_at IS NULL
@@ -401,7 +417,7 @@ public actor Database {
     }
 
     let sql = """
-          SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
+          SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
           FROM objects o\(joins)
           \(conditions)
           ORDER BY o.name
@@ -520,7 +536,7 @@ public actor Database {
     while true {
       let predecessors = try query(
         """
-        SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
+        SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
         FROM objects o
         JOIN versions v ON v.previous_object_id = o.id
         WHERE v.object_id = ?
@@ -543,7 +559,7 @@ public actor Database {
     while true {
       let successors = try query(
         """
-        SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension
+        SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
         FROM objects o
         JOIN versions v ON v.object_id = o.id
         WHERE v.previous_object_id = ?
@@ -660,7 +676,8 @@ public actor Database {
       deletedAt: columnOptionalDate(stmt, 4),
       modifiedAt: columnOptionalDate(stmt, 5),
       lastOpenedAt: columnOptionalDate(stmt, 6),
-      fileExtension: columnText(stmt, 7) ?? ""
+      fileExtension: columnText(stmt, 7) ?? "",
+      notes: columnText(stmt, 8)
     )
   }
 

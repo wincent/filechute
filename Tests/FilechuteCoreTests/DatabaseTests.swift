@@ -205,6 +205,75 @@ struct DatabaseObjectTests {
     #expect(obj.effectiveLastOpenedAt == .distantPast)
     #expect(obj.lastOpenedAt == nil)
   }
+
+  @Test("Newly inserted object has nil notes")
+  func notesDefaultNil() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+    let obj = try await db.getObject(byId: id)
+    #expect(obj?.notes == nil)
+  }
+
+  @Test("Update and retrieve notes")
+  func updateNotes() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+
+    try await db.updateNotes(id: id, notes: "Some important context")
+    let obj = try await db.getObject(byId: id)
+    #expect(obj?.notes == "Some important context")
+  }
+
+  @Test("Clear notes by setting to nil")
+  func clearNotes() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+
+    try await db.updateNotes(id: id, notes: "temporary note")
+    try await db.updateNotes(id: id, notes: nil)
+    let obj = try await db.getObject(byId: id)
+    #expect(obj?.notes == nil)
+  }
+
+  @Test("Update notes updates modified_at")
+  func updateNotesUpdatesModifiedAt() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+    let before = try await db.getObject(byId: id)
+
+    try await Task.sleep(for: .seconds(1))
+    try await db.updateNotes(id: id, notes: "a note")
+    let after = try await db.getObject(byId: id)
+
+    #expect(after!.modifiedAt! > before!.modifiedAt!)
+  }
+
+  @Test("Notes preserved across queries")
+  func notesInAllObjects() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "a.pdf")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "b.pdf")
+
+    try await db.updateNotes(id: id, notes: "my note")
+
+    let all = try await db.allObjects()
+    let withNotes = all.first { $0.id == id }
+    let withoutNotes = all.first { $0.id != id }
+    #expect(withNotes?.notes == "my note")
+    #expect(withoutNotes?.notes == nil)
+  }
+
+  @Test("Notes preserved in tag search results")
+  func notesInTagSearch() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "doc")
+    let tag = try await db.getOrCreateTag(name: "tagged")
+    try await db.addTag(tag.id, toObject: id)
+    try await db.updateNotes(id: id, notes: "search me")
+
+    let results = try await db.objects(withTagId: tag.id)
+    #expect(results[0].notes == "search me")
+  }
 }
 
 @Suite("Database - Tags")
