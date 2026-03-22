@@ -8,6 +8,12 @@ A macOS app for tag-based file organization.
 make run
 ```
 
+## Tests
+
+```
+make test
+```
+
 ## Formatting
 
 ```
