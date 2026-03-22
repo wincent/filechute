@@ -185,6 +185,10 @@ struct DatabaseObjectTests {
 
     let noExt = StoredObject(id: 4, hash: sampleHash(4), name: "readme", createdAt: Date())
     #expect(noExt.fileTypeDisplay == "")
+
+    let unknown = StoredObject(
+      id: 5, hash: sampleHash(5), name: "data", createdAt: Date(), fileExtension: "zzz123")
+    #expect(unknown.fileTypeDisplay == "ZZZ123")
   }
 
   @Test("effectiveModifiedAt falls back to createdAt")
@@ -515,6 +519,24 @@ struct DatabaseMetadataTests {
     let value = try await db.getMetadata(objectId: id, key: "note")
     #expect(value == nil)
   }
+
+  @Test("allExtensions returns extension metadata by object")
+  func allExtensions() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "doc")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "photo")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "readme")
+
+    try await db.setMetadata(objectId: id1, key: "extension", value: "pdf")
+    try await db.setMetadata(objectId: id2, key: "extension", value: "jpg")
+    try await db.setMetadata(objectId: id3, key: "size", value: "100")
+
+    let extensions = try await db.allExtensions()
+    #expect(extensions.count == 2)
+    #expect(extensions[id1] == "pdf")
+    #expect(extensions[id2] == "jpg")
+    #expect(extensions[id3] == nil)
+  }
 }
 
 @Suite("Database - Versions")
@@ -568,5 +590,38 @@ struct DatabaseVersionTests {
 
     let history = try await db.versionHistory(for: id)
     #expect(history.isEmpty)
+  }
+}
+
+@Suite("Database - Tag names by object")
+struct DatabaseTagNamesByObjectTests {
+  @Test("allTagNamesByObject returns tag names grouped by object ID")
+  func tagNamesByObject() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "c")
+
+    let t1 = try await db.getOrCreateTag(name: "alpha")
+    let t2 = try await db.getOrCreateTag(name: "beta")
+    let t3 = try await db.getOrCreateTag(name: "gamma")
+
+    try await db.addTag(t1.id, toObject: id1)
+    try await db.addTag(t2.id, toObject: id1)
+    try await db.addTag(t3.id, toObject: id2)
+
+    let result = try await db.allTagNamesByObject()
+    #expect(result[id1] == ["alpha", "beta"])
+    #expect(result[id2] == ["gamma"])
+    #expect(result[id3] == nil)
+  }
+
+  @Test("allTagNamesByObject returns empty dictionary when no taggings")
+  func emptyTagNamesByObject() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "untagged")
+
+    let result = try await db.allTagNamesByObject()
+    #expect(result.isEmpty)
   }
 }

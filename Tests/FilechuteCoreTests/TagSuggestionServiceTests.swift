@@ -83,4 +83,60 @@ struct TagSuggestionServiceTests {
     #expect(!suggestions.contains("b"))
     #expect(!suggestions.contains("c"))
   }
+
+  @Test("Suggests audio MIME category")
+  func audioCategory() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(forFilename: "song.mp3", extension: "mp3")
+    #expect(suggestions.contains("audio"))
+  }
+
+  @Test("Suggests video MIME category")
+  func videoCategory() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(forFilename: "clip.mp4", extension: "mp4")
+    #expect(suggestions.contains("video"))
+  }
+
+  @Test("Suggests archive MIME category")
+  func archiveCategory() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(forFilename: "backup.zip", extension: "zip")
+    #expect(suggestions.contains("archive"))
+  }
+
+  @Test("Suggests document MIME category for text files")
+  func documentCategory() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(forFilename: "notes.txt", extension: "txt")
+    #expect(suggestions.contains("document"))
+  }
+
+  @Test("Empty extension string produces no extension tag")
+  func emptyExtension() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(forFilename: "readme", extension: "")
+    #expect(!suggestions.contains(""))
+  }
+
+  @Test("Normalizes extension via UTType")
+  func normalizesExtension() async throws {
+    let db = try Database(path: ":memory:")
+    let service = TagSuggestionService(database: db)
+
+    let suggestions = try await service.suggestTags(
+      forFilename: "photo.jpeg", extension: "jpeg")
+    #expect(suggestions.contains("jpeg"))
+    #expect(suggestions.contains("image"))
+  }
 }

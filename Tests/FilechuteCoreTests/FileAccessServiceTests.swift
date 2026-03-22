@@ -87,4 +87,54 @@ struct FileAccessServiceTests {
       #expect(FileManager.default.fileExists(atPath: url2.path))
     }
   }
+
+  @Test("Empty extension string does not append dot")
+  func emptyExtension() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let (hash, _) = try store.store(data: Data("x".utf8))
+      let tmpDir = dir.appendingPathComponent("tmp")
+      let service = try FileAccessService(objectStore: store, tmpDirectory: tmpDir)
+
+      let url = try service.openTemporaryCopy(hash: hash, name: "readme", extension: "")
+      #expect(url.lastPathComponent == "readme")
+    }
+  }
+
+  @Test("Cleanup removes files older than cutoff")
+  func cleanupOldFiles() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let (hash, _) = try store.store(data: Data("x".utf8))
+      let tmpDir = dir.appendingPathComponent("tmp")
+      let service = try FileAccessService(objectStore: store, tmpDirectory: tmpDir)
+
+      let url = try service.openTemporaryCopy(hash: hash, name: "old", extension: "txt")
+      let subdir = url.deletingLastPathComponent()
+
+      let past = Date().addingTimeInterval(-2 * 86400)
+      try FileManager.default.setAttributes(
+        [.modificationDate: past], ofItemAtPath: subdir.path)
+
+      try service.cleanupTemporaryFiles()
+
+      #expect(!FileManager.default.fileExists(atPath: subdir.path))
+    }
+  }
+
+  @Test("Cleanup keeps recent files")
+  func cleanupKeepsRecent() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let (hash, _) = try store.store(data: Data("x".utf8))
+      let tmpDir = dir.appendingPathComponent("tmp")
+      let service = try FileAccessService(objectStore: store, tmpDirectory: tmpDir)
+
+      let url = try service.openTemporaryCopy(hash: hash, name: "recent", extension: "txt")
+
+      try service.cleanupTemporaryFiles()
+
+      #expect(FileManager.default.fileExists(atPath: url.path))
+    }
+  }
 }

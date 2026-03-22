@@ -151,4 +151,54 @@ struct IngestionServiceTests {
       #expect(v2.id == v1.id)
     }
   }
+
+  @Test("Update with non-existent object throws")
+  func updateNonExistent() async throws {
+    try await withTestStore { _, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "new.txt", contents: "data")
+
+      await #expect(throws: DatabaseError.self) {
+        try await service.update(objectId: 99999, withFileAt: fileURL)
+      }
+    }
+  }
+
+  @Test("Ingestion of file without extension")
+  func noExtension() async throws {
+    try await withTestStore { _, db, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "Makefile", contents: "all: build")
+      let obj = try await service.ingest(fileAt: fileURL)
+
+      #expect(obj.name == "Makefile")
+      let ext = try await db.getMetadata(objectId: obj.id, key: "extension")
+      #expect(ext == nil)
+    }
+  }
+
+  @Test("Ingestion stores file extension on object record")
+  func storesFileExtension() async throws {
+    try await withTestStore { _, db, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "image.png", contents: "png data")
+      let obj = try await service.ingest(fileAt: fileURL)
+
+      #expect(obj.fileExtension == "png")
+      let fetched = try await db.getObject(byId: obj.id)
+      #expect(fetched?.fileExtension == "png")
+    }
+  }
 }

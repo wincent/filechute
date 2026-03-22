@@ -181,4 +181,41 @@ struct ObjectStoreTests {
       #expect(dataHash == fileHash)
     }
   }
+
+  @Test("File-based deduplication returns isNew=false for same content")
+  func fileDeduplication() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let file1 = try createTempFile(in: dir, name: "a.txt", contents: "same")
+      let file2 = try createTempFile(in: dir, name: "b.txt", contents: "same")
+
+      let (hash1, isNew1) = try store.store(fileAt: file1)
+      let (hash2, isNew2) = try store.store(fileAt: file2)
+
+      #expect(isNew1)
+      #expect(!isNew2)
+      #expect(hash1 == hash2)
+    }
+  }
+
+  @Test("Verify returns false for corrupted object")
+  func verifyCorrupted() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("original content".utf8)
+
+      let (hash, _) = try store.store(data: data)
+      try Data("tampered".utf8).write(to: store.url(for: hash))
+
+      #expect(try !store.verify(hash))
+    }
+  }
+
+  @Test("ContentHash description returns hex string")
+  func contentHashDescription() {
+    let hex = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+    let hash = ContentHash(hexString: hex)
+    #expect(hash.description == hex)
+    #expect("\(hash)" == hex)
+  }
 }

@@ -112,4 +112,30 @@ struct IntegrityCheckerTests {
       #expect(report.blobsScanned == 10)
     }
   }
+
+  @Test("Repair with empty report removes nothing")
+  func repairEmptyReport() async throws {
+    try await withTestEnv { _, _, checker in
+      let report = IntegrityReport()
+      let removed = try checker.repair(report: report)
+      #expect(removed == 0)
+    }
+  }
+
+  @Test("Mixed state: dangling references and orphaned blobs")
+  func mixedState() async throws {
+    try await withTestEnv { store, db, checker in
+      let danglingHash = ContentHash(hexString: "bb" + String(repeating: "00", count: 31))
+      _ = try await db.insertObject(hash: danglingHash, name: "missing-blob.txt")
+
+      let orphanData = Data("orphan".utf8)
+      let (_, _) = try store.store(data: orphanData)
+
+      let report = try await checker.check()
+      #expect(!report.isClean)
+      #expect(report.danglingReferences.count == 1)
+      #expect(report.orphanedBlobs.count == 1)
+      #expect(report.objectsChecked == 1)
+    }
+  }
 }
