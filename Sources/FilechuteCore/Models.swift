@@ -15,6 +15,7 @@ public struct StoredObject: Identifiable, Sendable, Hashable {
 
   public var effectiveModifiedAt: Date { modifiedAt ?? createdAt }
   public var effectiveLastOpenedAt: Date { lastOpenedAt ?? .distantPast }
+  public var effectiveDeletedAt: Date { deletedAt ?? .distantPast }
   public var fileTypeDisplay: String {
     UTType(filenameExtension: fileExtension)?.localizedDescription ?? fileExtension.uppercased()
   }

@@ -26,6 +26,8 @@ struct ContentView: View {
   @SceneStorage("viewMode") private var viewMode: String = "table"
   @State private var gridColumnCount = 4
   @SceneStorage("thumbnailSize") private var thumbnailSize: Double = 128
+  @State private var sidebarSelection: NavigationSection? = .allItems
+  @Environment(\.undoManager) private var undoManager
 
   var selectedObject: StoredObject? {
     guard selection.count == 1, let id = selection.first else { return nil }
@@ -54,133 +56,16 @@ struct ContentView: View {
   }
 
   var body: some View {
-    NavigationStack {
-      VStack(spacing: 0) {
-        if showColumnBrowser {
-          ColumnBrowserView(
-            storeManager: storeManager,
-            filteredObjects: $filteredObjects
-          )
-          .frame(height: columnBrowserHeight)
-
-          ResizableDivider(height: $columnBrowserHeight, minHeight: 80, maxHeight: 400)
-        }
-
-        Group {
-          if storeManager.objects.isEmpty {
-            emptyStateView
-          } else if displayedObjects.isEmpty {
-            ContentUnavailableView.search(text: searchText)
-          } else if viewMode == "preview" {
-            PreviewGridView(
-              storeManager: storeManager,
-              objects: displayedObjects,
-              selection: $selection,
-              columnCount: $gridColumnCount,
-              thumbnailSize: thumbnailSize,
-              onOpen: { obj in
-                Task { try? await storeManager.openObject(obj) }
-              },
-              onQuickLook: { obj in
-                activateQuickLook(for: obj)
-              },
-              onRevealInFinder: { obj in
-                Task { try? await storeManager.openObjectWith(obj) }
-              }
-            )
-          } else {
-            tableView
-          }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-        if !storeManager.objects.isEmpty {
-          StatusBarView(
-            objects: displayedObjects,
-            selection: selection,
-            sizesByObject: storeManager.sizesByObject,
-            isGridMode: viewMode == "preview",
-            thumbnailSize: $thumbnailSize
-          )
-        }
-      }
-      .inspector(isPresented: $showInspector) {
-        if let selectedObject {
-          DetailView(object: selectedObject, storeManager: storeManager) {
-            activateQuickLook(for: selectedObject)
-          }
-          .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-        } else if selection.count > 1 {
-          VStack {
-            Image(systemName: "square.stack")
-              .font(.largeTitle)
-              .foregroundStyle(.secondary)
-            Text("\(selection.count) items selected")
-              .foregroundStyle(.secondary)
-          }
-          .frame(maxHeight: .infinity)
-          .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-        } else {
-          Text("No selection")
-            .foregroundStyle(.secondary)
-            .frame(maxHeight: .infinity)
-            .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
-        }
-      }
-      .navigationTitle("Filechute")
-      .toolbar {
-        ToolbarItem(placement: .primaryAction) {
-          Picker("View Mode", selection: $viewMode) {
-            Image(systemName: "list.bullet")
-              .tag("table")
-              .accessibilityLabel("Table view")
-            Image(systemName: "square.grid.2x2")
-              .tag("preview")
-              .accessibilityLabel("Preview grid")
-          }
-          .pickerStyle(.segmented)
-          .fixedSize()
-          .keyboardShortcut(viewMode == "table" ? "2" : "1", modifiers: .command)
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button {
-            openFilePicker()
-          } label: {
-            Label("Add Files", systemImage: "plus")
-          }
-          .accessibilityLabel("Add files to the store")
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button {
-            showColumnBrowser.toggle()
-          } label: {
-            Label("Column Browser", systemImage: "rectangle.split.3x1")
-          }
-          .accessibilityLabel("Toggle column browser")
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button {
-            showColumnSettings.toggle()
-          } label: {
-            Label("Columns", systemImage: "tablecells")
-          }
-          .popover(isPresented: $showColumnSettings) {
-            ColumnSettingsView(customization: $columnCustomization)
-          }
-          .accessibilityLabel("Configure visible columns")
-        }
-        ToolbarItem(placement: .primaryAction) {
-          Button {
-            showInspector.toggle()
-          } label: {
-            Label("Inspector", systemImage: "sidebar.right")
-          }
-          .accessibilityLabel("Toggle inspector panel")
-        }
-        ToolbarItem(placement: .principal) {
-          SearchField(text: $searchText)
-            .frame(width: 300)
-        }
+    NavigationSplitView {
+      SidebarView(storeManager: storeManager, selection: $sidebarSelection)
+    } detail: {
+      switch sidebarSelection {
+      case .allItems:
+        allItemsView
+      case .trash:
+        TrashView(storeManager: storeManager, showInspector: $showInspector)
+      case nil:
+        ContentUnavailableView("Select a section", systemImage: "sidebar.left")
       }
     }
     .onAppear {
@@ -189,6 +74,142 @@ struct ContentView: View {
     }
     .onDisappear {
       keyMonitor.uninstall()
+    }
+    .onChange(of: sidebarSelection) { _, _ in
+      selection = []
+    }
+  }
+
+  private var allItemsView: some View {
+    VStack(spacing: 0) {
+      if showColumnBrowser {
+        ColumnBrowserView(
+          storeManager: storeManager,
+          filteredObjects: $filteredObjects
+        )
+        .frame(height: columnBrowserHeight)
+
+        ResizableDivider(height: $columnBrowserHeight, minHeight: 80, maxHeight: 400)
+      }
+
+      Group {
+        if storeManager.objects.isEmpty {
+          emptyStateView
+        } else if displayedObjects.isEmpty {
+          ContentUnavailableView.search(text: searchText)
+        } else if viewMode == "preview" {
+          PreviewGridView(
+            storeManager: storeManager,
+            objects: displayedObjects,
+            selection: $selection,
+            columnCount: $gridColumnCount,
+            thumbnailSize: thumbnailSize,
+            onOpen: { obj in
+              Task { try? await storeManager.openObject(obj) }
+            },
+            onQuickLook: { obj in
+              activateQuickLook(for: obj)
+            },
+            onRevealInFinder: { obj in
+              Task { try? await storeManager.openObjectWith(obj) }
+            },
+            onDelete: { ids in
+              deleteWithUndo(ids)
+            }
+          )
+        } else {
+          tableView
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+      if !storeManager.objects.isEmpty {
+        StatusBarView(
+          objects: displayedObjects,
+          selection: selection,
+          sizesByObject: storeManager.sizesByObject,
+          isGridMode: viewMode == "preview",
+          thumbnailSize: $thumbnailSize
+        )
+      }
+    }
+    .inspector(isPresented: $showInspector) {
+      if let selectedObject {
+        DetailView(object: selectedObject, storeManager: storeManager) {
+          activateQuickLook(for: selectedObject)
+        }
+        .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
+      } else if selection.count > 1 {
+        VStack {
+          Image(systemName: "square.stack")
+            .font(.largeTitle)
+            .foregroundStyle(.secondary)
+          Text("\(selection.count) items selected")
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxHeight: .infinity)
+        .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
+      } else {
+        Text("No selection")
+          .foregroundStyle(.secondary)
+          .frame(maxHeight: .infinity)
+          .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
+      }
+    }
+    .navigationTitle("All Items")
+    .toolbar {
+      ToolbarItem(placement: .primaryAction) {
+        Picker("View Mode", selection: $viewMode) {
+          Image(systemName: "list.bullet")
+            .tag("table")
+            .accessibilityLabel("Table view")
+          Image(systemName: "square.grid.2x2")
+            .tag("preview")
+            .accessibilityLabel("Preview grid")
+        }
+        .pickerStyle(.segmented)
+        .fixedSize()
+        .keyboardShortcut(viewMode == "table" ? "2" : "1", modifiers: .command)
+      }
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          openFilePicker()
+        } label: {
+          Label("Add Files", systemImage: "plus")
+        }
+        .accessibilityLabel("Add files to the store")
+      }
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          showColumnBrowser.toggle()
+        } label: {
+          Label("Column Browser", systemImage: "rectangle.split.3x1")
+        }
+        .accessibilityLabel("Toggle column browser")
+      }
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          showColumnSettings.toggle()
+        } label: {
+          Label("Columns", systemImage: "tablecells")
+        }
+        .popover(isPresented: $showColumnSettings) {
+          ColumnSettingsView(customization: $columnCustomization)
+        }
+        .accessibilityLabel("Configure visible columns")
+      }
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          showInspector.toggle()
+        } label: {
+          Label("Inspector", systemImage: "sidebar.right")
+        }
+        .accessibilityLabel("Toggle inspector panel")
+      }
+      ToolbarItem(placement: .principal) {
+        SearchField(text: $searchText)
+          .frame(width: 300)
+      }
     }
     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
       handleDrop(providers)
@@ -230,6 +251,10 @@ struct ContentView: View {
     }
     keyMonitor.onBulkTagEdit = { [self] in
       showBulkTagEditor.toggle()
+    }
+    keyMonitor.onMoveToTrash = { [self] in
+      guard sidebarSelection == .allItems, !selection.isEmpty else { return }
+      deleteWithUndo(selection)
     }
     keyMonitor.isBulkTagEditorVisible = { [self] in
       showBulkTagEditor
@@ -341,12 +366,8 @@ struct ContentView: View {
         Divider()
       }
       if !ids.isEmpty {
-        Button("Delete", role: .destructive) {
-          Task {
-            for id in ids {
-              try? await storeManager.deleteObject(id)
-            }
-          }
+        Button("Move to Trash", role: .destructive) {
+          deleteWithUndo(ids)
         }
       }
     } primaryAction: { ids in
@@ -490,6 +511,57 @@ struct ContentView: View {
       }
     }
     return didHandle
+  }
+
+  private func deleteWithUndo(_ ids: Set<Int64>) {
+    Task {
+      for id in ids {
+        try? await storeManager.deleteObject(id)
+      }
+    }
+    selection.subtract(ids)
+    guard let undoManager else { return }
+    Self.registerDeleteUndo(
+      ids: ids,
+      storeManager: storeManager,
+      undoManager: undoManager
+    )
+  }
+
+  private static func registerDeleteUndo(
+    ids: Set<Int64>,
+    storeManager: StoreManager,
+    undoManager: UndoManager
+  ) {
+    undoManager.registerUndo(withTarget: storeManager) { [weak undoManager] manager in
+      Task { @MainActor in
+        for id in ids {
+          try? await manager.restoreObject(id)
+        }
+        if let undoManager {
+          registerDeleteRedo(ids: ids, storeManager: manager, undoManager: undoManager)
+        }
+      }
+    }
+    undoManager.setActionName("Delete")
+  }
+
+  private static func registerDeleteRedo(
+    ids: Set<Int64>,
+    storeManager: StoreManager,
+    undoManager: UndoManager
+  ) {
+    undoManager.registerUndo(withTarget: storeManager) { [weak undoManager] manager in
+      Task { @MainActor in
+        for id in ids {
+          try? await manager.deleteObject(id)
+        }
+        if let undoManager {
+          registerDeleteUndo(ids: ids, storeManager: manager, undoManager: undoManager)
+        }
+      }
+    }
+    undoManager.setActionName("Delete")
   }
 }
 

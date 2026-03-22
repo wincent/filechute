@@ -81,6 +81,42 @@ struct DatabaseObjectTests {
     #expect(try await db.allMetadata(for: id).isEmpty)
   }
 
+  @Test("Soft delete and restore preserves object data")
+  func softDeleteRestorePreservesData() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+    let tag = try await db.getOrCreateTag(name: "important")
+    try await db.addTag(tag.id, toObject: id)
+    try await db.updateNotes(id: id, notes: "some notes")
+
+    try await db.softDeleteObject(id: id)
+    #expect(try await db.allObjects().isEmpty)
+    #expect(try await db.allObjects(includeDeleted: true).count == 1)
+
+    try await db.restoreObject(id: id)
+    let restored = try await db.getObject(byId: id)
+    #expect(restored?.name == "test.pdf")
+    #expect(restored?.deletedAt == nil)
+    #expect(restored?.notes == "some notes")
+    let tags = try await db.tags(forObject: id)
+    #expect(tags.count == 1)
+    #expect(tags.first?.name == "important")
+  }
+
+  @Test("effectiveDeletedAt returns deletedAt or distantPast")
+  func effectiveDeletedAt() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "test.pdf")
+
+    let obj = try await db.getObject(byId: id)
+    #expect(obj?.effectiveDeletedAt == .distantPast)
+
+    try await db.softDeleteObject(id: id)
+    let deleted = try await db.getObject(byId: id)
+    #expect(deleted?.effectiveDeletedAt == deleted?.deletedAt)
+    #expect(deleted?.effectiveDeletedAt != .distantPast)
+  }
+
   @Test("Rename object")
   func rename() async throws {
     let db = try makeDB()

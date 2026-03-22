@@ -7,6 +7,7 @@ final class KeyEventMonitor {
   var context: () -> InteractionContext = { InteractionContext() }
   var perform: (InteractionEffect) -> Void = { _ in }
   var onBulkTagEdit: () -> Void = {}
+  var onMoveToTrash: () -> Void = {}
   var isBulkTagEditorVisible: () -> Bool = { false }
 
   func install() {
@@ -32,6 +33,15 @@ final class KeyEventMonitor {
           return nil
         }
         return event
+      }
+
+      if event.keyCode == 51
+        && event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
+      {
+        MainActor.assumeIsolated {
+          self.onMoveToTrash()
+        }
+        return nil
       }
 
       if event.charactersIgnoringModifiers == "f"

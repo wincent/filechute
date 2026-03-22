@@ -11,6 +11,7 @@ struct PreviewGridView: View {
   var onOpen: (StoredObject) -> Void
   var onQuickLook: (StoredObject) -> Void
   var onRevealInFinder: (StoredObject) -> Void
+  var onDelete: (Set<Int64>) -> Void
   @State private var anchorId: Int64?
   @State private var editingObjectId: Int64?
   @State private var editingName = ""
@@ -58,8 +59,8 @@ struct PreviewGridView: View {
                 Button("Reveal in Finder") { onRevealInFinder(object) }
                 Button("Rename") { startRename(for: object) }
                 Divider()
-                Button("Delete", role: .destructive) {
-                  Task { try? await storeManager.deleteObject(object.id) }
+                Button("Move to Trash", role: .destructive) {
+                  onDelete([object.id])
                 }
               }
             }

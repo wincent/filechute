@@ -44,6 +44,9 @@ final class StoreManager {
     for i in objects.indices {
       objects[i].sizeBytes = sizesByObject[objects[i].id] ?? 0
     }
+    for i in deletedObjects.indices {
+      deletedObjects[i].sizeBytes = sizesByObject[deletedObjects[i].id] ?? 0
+    }
     Log.debug(
       "Refreshed: \(objects.count) objects, \(allTags.count) tags, \(deletedObjects.count) deleted",
       category: .ui
