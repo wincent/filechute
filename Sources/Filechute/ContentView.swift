@@ -83,6 +83,9 @@ struct ContentView: View {
               },
               onQuickLook: { obj in
                 activateQuickLook(for: obj)
+              },
+              onRevealInFinder: { obj in
+                Task { try? await storeManager.openObjectWith(obj) }
               }
             )
           } else {
@@ -323,6 +326,9 @@ struct ContentView: View {
       {
         Button("Open") {
           Task { try? await storeManager.openObject(obj) }
+        }
+        Button("Quick Look") {
+          activateQuickLook(for: obj)
         }
         Button("Reveal in Finder") {
           Task { try? await storeManager.openObjectWith(obj) }

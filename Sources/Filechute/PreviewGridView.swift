@@ -10,8 +10,12 @@ struct PreviewGridView: View {
   var thumbnailSize: Double
   var onOpen: (StoredObject) -> Void
   var onQuickLook: (StoredObject) -> Void
+  var onRevealInFinder: (StoredObject) -> Void
   @State private var anchorId: Int64?
+  @State private var editingObjectId: Int64?
+  @State private var editingName = ""
   @FocusState private var isFocused: Bool
+  @FocusState private var isEditingFocused: Bool
 
   private var cellWidth: CGFloat { thumbnailSize + 16 }
 
@@ -29,7 +33,12 @@ struct PreviewGridView: View {
                 object: object,
                 thumbnailURL: storeManager.thumbnailURL(for: object),
                 isSelected: selection.contains(object.id),
-                size: thumbnailSize
+                size: thumbnailSize,
+                isEditing: editingObjectId == object.id,
+                editingName: $editingName,
+                isEditingFocused: $isEditingFocused,
+                onCommitRename: { commitRename(for: object.id) },
+                onCancelRename: { cancelRename() }
               )
               .id(object.id)
               .gesture(
@@ -46,6 +55,8 @@ struct PreviewGridView: View {
               .contextMenu {
                 Button("Open") { onOpen(object) }
                 Button("Quick Look") { onQuickLook(object) }
+                Button("Reveal in Finder") { onRevealInFinder(object) }
+                Button("Rename") { startRename(for: object) }
                 Divider()
                 Button("Delete", role: .destructive) {
                   Task { try? await storeManager.deleteObject(object.id) }
@@ -86,6 +97,7 @@ struct PreviewGridView: View {
       navigate(by: columnCount, extending: press.modifiers.contains(.shift))
     }
     .onKeyPress(.space) {
+      if editingObjectId != nil { return .ignored }
       guard let id = selection.first,
         let obj = objects.first(where: { $0.id == id })
       else { return .ignored }
@@ -125,6 +137,35 @@ struct PreviewGridView: View {
     }
   }
 
+  private func startRename(for object: StoredObject) {
+    editingName = object.name
+    editingObjectId = object.id
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+      isEditingFocused = true
+    }
+  }
+
+  private func commitRename(for objectId: Int64) {
+    let name = editingName.trimmingCharacters(in: .whitespaces)
+    editingObjectId = nil
+    guard !name.isEmpty else { return }
+    Task {
+      try? await storeManager.renameObject(objectId, to: name)
+    }
+    restoreFocus()
+  }
+
+  private func cancelRename() {
+    editingObjectId = nil
+    restoreFocus()
+  }
+
+  private func restoreFocus() {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+      isFocused = true
+    }
+  }
+
   private func navigate(by offset: Int, extending: Bool) -> KeyPress.Result {
     guard !objects.isEmpty else { return .ignored }
 
@@ -157,6 +198,11 @@ struct PreviewGridCell: View {
   let thumbnailURL: URL
   let isSelected: Bool
   var size: Double = 128
+  var isEditing: Bool = false
+  @Binding var editingName: String
+  @FocusState.Binding var isEditingFocused: Bool
+  var onCommitRename: () -> Void = {}
+  var onCancelRename: () -> Void = {}
 
   var body: some View {
     VStack(spacing: 6) {
@@ -165,11 +211,21 @@ struct PreviewGridCell: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
 
-      Text(object.name)
-        .font(.caption)
-        .lineLimit(2)
-        .multilineTextAlignment(.center)
-        .frame(width: size)
+      if isEditing {
+        TextField("Name", text: $editingName)
+          .font(.caption)
+          .multilineTextAlignment(.center)
+          .frame(width: size)
+          .focused($isEditingFocused)
+          .onSubmit { onCommitRename() }
+          .onExitCommand { onCancelRename() }
+      } else {
+        Text(object.name)
+          .font(.caption)
+          .lineLimit(2)
+          .multilineTextAlignment(.center)
+          .frame(width: size)
+      }
     }
     .padding(8)
     .background(
