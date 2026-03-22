@@ -8,6 +8,24 @@ struct FilechuteApp: App {
     }
     .commands {
       CommandGroup(replacing: .textEditing) {}
+      FilechuteCommands()
+    }
+
+    Window("Log", id: "log") {
+      LogWindowView()
+    }
+  }
+}
+
+struct FilechuteCommands: Commands {
+  @Environment(\.openWindow) private var openWindow
+
+  var body: some Commands {
+    CommandMenu("Debug") {
+      Button("Show Log") {
+        openWindow(id: "log")
+      }
+      .keyboardShortcut("L", modifiers: [.command, .option])
     }
   }
 }

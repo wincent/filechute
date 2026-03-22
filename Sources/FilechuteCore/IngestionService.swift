@@ -18,6 +18,10 @@ public struct IngestionService: Sendable {
     let (hash, _) = try objectStore.store(fileAt: sourceURL)
 
     if let existing = try await database.getObject(byHash: hash) {
+      Log.debug(
+        "Found existing object for \(sourceURL.lastPathComponent)",
+        category: .ingestion
+      )
       for tagName in tags {
         let tag = try await database.getOrCreateTag(name: tagName)
         try await database.addTag(tag.id, toObject: existing.id)
@@ -51,6 +55,7 @@ public struct IngestionService: Sendable {
     guard let object = try await database.getObject(byId: objectId) else {
       throw DatabaseError.notFound
     }
+    Log.info("Ingested \(objectName) (\(hash.hexString.prefix(8)))", category: .ingestion)
     return object
   }
 
@@ -65,6 +70,7 @@ public struct IngestionService: Sendable {
     let (newHash, _) = try objectStore.store(fileAt: sourceURL)
 
     if newHash == existing.hash {
+      Log.debug("Content unchanged for object \(objectId)", category: .ingestion)
       return existing
     }
 
@@ -85,6 +91,10 @@ public struct IngestionService: Sendable {
     guard let newObject = try await database.getObject(byId: newObjectId) else {
       throw DatabaseError.notFound
     }
+    Log.info(
+      "Updated object \(objectId): \(existing.hash.hexString.prefix(8)) -> \(newHash.hexString.prefix(8))",
+      category: .ingestion
+    )
     return newObject
   }
 }

@@ -36,6 +36,7 @@ public struct FileAccessService: Sendable {
       try FileManager.default.removeItem(at: fileURL)
     }
     try data.write(to: fileURL)
+    Log.debug("Created temporary copy: \(sanitized)", category: .fileAccess)
 
     return fileURL
   }
@@ -47,11 +48,16 @@ public struct FileAccessService: Sendable {
       options: []
     )
     let cutoff = Date().addingTimeInterval(-86400)
+    var removed = 0
     for item in contents {
       let values = try item.resourceValues(forKeys: [.contentModificationDateKey])
       if let modified = values.contentModificationDate, modified < cutoff {
         try? FileManager.default.removeItem(at: item)
+        removed += 1
       }
+    }
+    if removed > 0 {
+      Log.debug("Cleaned up \(removed) temporary files", category: .fileAccess)
     }
   }
 }

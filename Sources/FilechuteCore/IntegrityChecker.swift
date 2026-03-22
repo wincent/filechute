@@ -22,6 +22,7 @@ public struct IntegrityChecker: Sendable {
   }
 
   public func check() async throws -> IntegrityReport {
+    Log.info("Starting integrity check", category: .integrity)
     var report = IntegrityReport()
 
     let allObjects = try await database.allObjects(includeDeleted: true)
@@ -67,6 +68,10 @@ public struct IntegrityChecker: Sendable {
       }
     }
 
+    Log.info(
+      "Integrity check: \(report.objectsChecked) objects, \(report.blobsScanned) blobs, clean=\(report.isClean)",
+      category: .integrity
+    )
     return report
   }
 
@@ -77,6 +82,7 @@ public struct IntegrityChecker: Sendable {
       try? objectStore.remove(hash)
       removed += 1
     }
+    Log.info("Repair: removed \(removed) orphaned blobs", category: .integrity)
     return removed
   }
 }

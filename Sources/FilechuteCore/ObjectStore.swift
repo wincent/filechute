@@ -32,6 +32,10 @@ public struct ObjectStore: Sendable {
       throw ObjectStoreError.writeFailed(objectURL, underlying: error)
     }
 
+    Log.debug(
+      "Stored \(sourceURL.lastPathComponent) (\(contentHash.hexString.prefix(8)))",
+      category: .objectStore
+    )
     return (contentHash, true)
   }
 
@@ -85,5 +89,6 @@ public struct ObjectStore: Sendable {
       throw ObjectStoreError.objectNotFound(hash)
     }
     try FileManager.default.removeItem(at: objectURL)
+    Log.debug("Removed blob \(hash.hexString.prefix(8))", category: .objectStore)
   }
 }

@@ -29,6 +29,10 @@ public struct GarbageCollector: Sendable {
       try await database.permanentlyDeleteObject(id: object.id)
       collected += 1
     }
+    Log.info(
+      "Garbage collection: \(deleted.count) candidates, \(collected) collected",
+      category: .garbageCollector
+    )
     return collected
   }
 }

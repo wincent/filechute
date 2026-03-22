@@ -28,6 +28,7 @@ final class StoreManager {
       tmpDirectory: storeRoot.appendingPathComponent("tmp")
     )
     self.garbageCollector = GarbageCollector(objectStore: store, database: db)
+    Log.info("Initialized store at \(storeRoot.path)", category: .general)
   }
 
   func refresh() async throws {
@@ -36,9 +37,14 @@ final class StoreManager {
     deletedObjects = try await database.allObjects(includeDeleted: true)
       .filter { $0.deletedAt != nil }
     tagNamesByObject = try await database.allTagNamesByObject()
+    Log.debug(
+      "Refreshed: \(objects.count) objects, \(allTags.count) tags, \(deletedObjects.count) deleted",
+      category: .ui
+    )
   }
 
   func ingest(urls: [URL]) async throws {
+    Log.debug("Ingesting \(urls.count) file(s)", category: .ui)
     for url in urls {
       _ = try await ingestionService.ingest(fileAt: url)
     }
@@ -126,6 +132,7 @@ final class StoreManager {
   }
 
   func emptyTrash() async throws {
+    Log.info("Emptying trash: \(deletedObjects.count) objects", category: .ui)
     for obj in deletedObjects {
       try? objectStore.remove(obj.hash)
       try await database.permanentlyDeleteObject(id: obj.id)

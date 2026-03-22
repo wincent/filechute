@@ -17,6 +17,7 @@ public actor Database {
     }
     self.db = opened
     try Self.initSchema(db: opened)
+    Log.info("Opened database at \(path)", category: .database)
   }
 
   deinit {
@@ -121,7 +122,7 @@ public actor Database {
     -> Int64
   {
     let now = Int64(Date().timeIntervalSince1970)
-    return try insert(
+    let id = try insert(
       "INSERT INTO objects (hash, name, created_at, modified_at, file_extension) VALUES (?, ?, ?, ?, ?)",
       bind: { stmt in
         sqlite3_bind_text(stmt, 1, hash.hexString, -1, SQLITE_TRANSIENT)
@@ -131,6 +132,8 @@ public actor Database {
         sqlite3_bind_text(stmt, 5, fileExtension, -1, SQLITE_TRANSIENT)
       }
     )
+    Log.debug("Inserted object \(name) (\(hash.hexString.prefix(8)))", category: .database)
+    return id
   }
 
   public func getObject(byId id: Int64) throws -> StoredObject? {
@@ -224,6 +227,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 2, id)
       }
     )
+    Log.debug("Soft-deleted object \(id)", category: .database)
   }
 
   public func restoreObject(id: Int64) throws {
@@ -231,6 +235,7 @@ public actor Database {
       "UPDATE objects SET deleted_at = NULL WHERE id = ?",
       bind: { stmt in sqlite3_bind_int64(stmt, 1, id) }
     )
+    Log.debug("Restored object \(id)", category: .database)
   }
 
   public func permanentlyDeleteObject(id: Int64) throws {
@@ -238,15 +243,18 @@ public actor Database {
       "DELETE FROM objects WHERE id = ?",
       bind: { stmt in sqlite3_bind_int64(stmt, 1, id) }
     )
+    Log.debug("Permanently deleted object \(id)", category: .database)
   }
 
   // MARK: - Tags
 
   public func createTag(name: String) throws -> Int64 {
-    try insert(
+    let id = try insert(
       "INSERT INTO tags (name) VALUES (?)",
       bind: { stmt in sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT) }
     )
+    Log.debug("Created tag '\(name)' (\(id))", category: .database)
+    return id
   }
 
   public func getTag(byId id: Int64) throws -> Tag? {
@@ -314,6 +322,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 3, Int64(Date().timeIntervalSince1970))
       }
     )
+    Log.debug("Added tag \(tagId) to object \(objectId)", category: .database)
   }
 
   public func removeTag(_ tagId: Int64, fromObject objectId: Int64) throws {
@@ -324,6 +333,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 2, tagId)
       }
     )
+    Log.debug("Removed tag \(tagId) from object \(objectId)", category: .database)
   }
 
   public func tags(forObject objectId: Int64) throws -> [Tag] {

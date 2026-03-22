@@ -377,6 +377,7 @@ struct ContentView: View {
     panel.canChooseDirectories = false
     panel.message = "Choose files to add to Filechute"
     if panel.runModal() == .OK {
+      Log.debug("File picker: \(panel.urls.count) files selected", category: .ui)
       Task {
         try? await storeManager.ingest(urls: panel.urls)
       }
@@ -384,6 +385,7 @@ struct ContentView: View {
   }
 
   private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+    Log.debug("Drop received: \(providers.count) items", category: .ui)
     var didHandle = false
     for provider in providers {
       if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
