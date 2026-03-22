@@ -19,6 +19,18 @@ public struct IngestionService: Sendable {
   ) async throws -> StoredObject {
     let (hash, _) = try objectStore.store(fileAt: sourceURL)
 
+    let ext = sourceURL.pathExtension
+    let sizeBytes: UInt64? =
+      (try? FileManager.default.attributesOfItem(atPath: sourceURL.path))?[.size] as? UInt64
+    let mimeType = UTType(filenameExtension: ext)?.preferredMIMEType
+
+    writeInfo(
+      originalName: sourceURL.lastPathComponent,
+      hash: hash,
+      sizeBytes: sizeBytes ?? 0,
+      mimeType: mimeType
+    )
+
     await thumbnailService.generateThumbnail(for: sourceURL, hash: hash)
 
     if let existing = try await database.getObject(byHash: hash) {
@@ -34,20 +46,18 @@ public struct IngestionService: Sendable {
     }
 
     let objectName = name ?? sourceURL.deletingPathExtension().lastPathComponent
-    let ext = sourceURL.pathExtension
 
     let objectId = try await database.insertObject(hash: hash, name: objectName, fileExtension: ext)
     if !ext.isEmpty {
       try await database.setMetadata(objectId: objectId, key: "extension", value: ext)
     }
 
-    if let attrs = try? FileManager.default.attributesOfItem(atPath: sourceURL.path),
-      let size = attrs[.size] as? UInt64
-    {
-      try await database.setMetadata(objectId: objectId, key: "size_bytes", value: String(size))
+    if let sizeBytes {
+      try await database.setMetadata(
+        objectId: objectId, key: "size_bytes", value: String(sizeBytes))
     }
 
-    if let mimeType = UTType(filenameExtension: ext)?.preferredMIMEType {
+    if let mimeType {
       try await database.setMetadata(objectId: objectId, key: "mime_type", value: mimeType)
     }
 
@@ -72,6 +82,17 @@ public struct IngestionService: Sendable {
     }
 
     let (newHash, _) = try objectStore.store(fileAt: sourceURL)
+
+    let ext = sourceURL.pathExtension
+    let sizeBytes: UInt64 =
+      ((try? FileManager.default.attributesOfItem(atPath: sourceURL.path))?[.size] as? UInt64) ?? 0
+    let mimeType = UTType(filenameExtension: ext)?.preferredMIMEType
+    writeInfo(
+      originalName: sourceURL.lastPathComponent,
+      hash: newHash,
+      sizeBytes: sizeBytes,
+      mimeType: mimeType
+    )
 
     await thumbnailService.generateThumbnail(for: sourceURL, hash: newHash)
 
@@ -102,5 +123,31 @@ public struct IngestionService: Sendable {
       category: .ingestion
     )
     return newObject
+  }
+
+  private func writeInfo(
+    originalName: String,
+    hash: ContentHash,
+    sizeBytes: UInt64,
+    mimeType: String?
+  ) {
+    guard !objectStore.infoExists(for: hash) else { return }
+    let info = ObjectInfo(
+      originalName: originalName,
+      importDate: Date(),
+      contentHash: "sha256:\(hash.hexString)",
+      sizeBytes: sizeBytes,
+      mimeType: mimeType
+    )
+    do {
+      let data = try ObjectInfo.encoder.encode(info)
+      try objectStore.storeInfo(data, for: hash)
+      Log.debug("Wrote info.json (\(hash.hexString.prefix(8)))", category: .objectStore)
+    } catch {
+      Log.debug(
+        "Failed to write info.json (\(hash.hexString.prefix(8))): \(error.localizedDescription)",
+        category: .objectStore
+      )
+    }
   }
 }

@@ -105,6 +105,36 @@ public enum BulkTagState {
   }
 }
 
+public struct ObjectInfo: Codable, Sendable {
+  public let originalName: String
+  public let importDate: Date
+  public let contentHash: String
+  public let sizeBytes: UInt64
+  public let mimeType: String?
+
+  public init(
+    originalName: String,
+    importDate: Date,
+    contentHash: String,
+    sizeBytes: UInt64,
+    mimeType: String?
+  ) {
+    self.originalName = originalName
+    self.importDate = importDate
+    self.contentHash = contentHash
+    self.sizeBytes = sizeBytes
+    self.mimeType = mimeType
+  }
+
+  public static let encoder: JSONEncoder = {
+    let encoder = JSONEncoder()
+    encoder.keyEncodingStrategy = .convertToSnakeCase
+    encoder.dateEncodingStrategy = .iso8601
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    return encoder
+  }()
+}
+
 public struct ObjectMetadata: Sendable, Hashable {
   public let objectId: Int64
   public let key: String

@@ -310,6 +310,51 @@ struct ObjectStoreTests {
     }
   }
 
+  @Test("infoURL points to info.json inside object directory")
+  func infoURLPath() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("test".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      let infoURL = store.infoURL(for: hash)
+      #expect(infoURL.lastPathComponent == "info.json")
+      #expect(infoURL.deletingLastPathComponent() == store.url(for: hash))
+    }
+  }
+
+  @Test("Store and check info existence")
+  func storeInfo() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("object data".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      #expect(!store.infoExists(for: hash))
+
+      let infoData = Data("{\"test\": true}".utf8)
+      try store.storeInfo(infoData, for: hash)
+
+      #expect(store.infoExists(for: hash))
+      let onDisk = try Data(contentsOf: store.infoURL(for: hash))
+      #expect(onDisk == infoData)
+    }
+  }
+
+  @Test("Remove deletes info.json along with data")
+  func removeDeletesInfo() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("with info".utf8)
+      let (hash, _) = try store.store(data: data)
+      try store.storeInfo(Data("{}".utf8), for: hash)
+
+      #expect(store.infoExists(for: hash))
+      try store.remove(hash)
+      #expect(!store.infoExists(for: hash))
+    }
+  }
+
   @Test("Store from file creates directory with data.bin")
   func storeFileCreatesDirectory() throws {
     try withTempDir { dir in

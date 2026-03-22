@@ -168,6 +168,97 @@ struct IngestionServiceTests {
     }
   }
 
+  @Test("Ingestion writes info.json with correct metadata")
+  func writesInfoJson() async throws {
+    try await withTestStore { store, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "photo.jpg", contents: "jpeg data")
+      let obj = try await service.ingest(fileAt: fileURL)
+
+      #expect(store.infoExists(for: obj.hash))
+
+      let infoData = try Data(contentsOf: store.infoURL(for: obj.hash))
+      let json = try JSONSerialization.jsonObject(with: infoData) as! [String: Any]
+      #expect(json["original_name"] as? String == "photo.jpg")
+      #expect(json["content_hash"] as? String == "sha256:\(obj.hash.hexString)")
+      #expect(json["mime_type"] as? String == "image/jpeg")
+      #expect(json["size_bytes"] as? Int != nil)
+      #expect(json["import_date"] as? String != nil)
+    }
+  }
+
+  @Test("info.json does not escape forward slashes")
+  func infoJsonNoEscapedSlashes() async throws {
+    try await withTestStore { store, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "photo.jpg", contents: "jpeg data")
+      let obj = try await service.ingest(fileAt: fileURL)
+
+      let raw = try String(contentsOf: store.infoURL(for: obj.hash), encoding: .utf8)
+      #expect(raw.contains("image/jpeg"))
+      #expect(!raw.contains("\\/"))
+    }
+  }
+
+  @Test("Duplicate ingestion does not overwrite info.json")
+  func duplicateDoesNotOverwriteInfo() async throws {
+    try await withTestStore { store, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let file1 = try createTempFile(in: dir, name: "first.txt", contents: "same content")
+      _ = try await service.ingest(fileAt: file1)
+
+      let infoData1 = try Data(
+        contentsOf: store.infoURL(
+          for: ContentHash.compute(from: Data("same content".utf8))
+        ))
+
+      let file2 = try createTempFile(in: dir, name: "second.txt", contents: "same content")
+      _ = try await service.ingest(fileAt: file2)
+
+      let infoData2 = try Data(
+        contentsOf: store.infoURL(
+          for: ContentHash.compute(from: Data("same content".utf8))
+        ))
+
+      #expect(infoData1 == infoData2)
+      let json = try JSONSerialization.jsonObject(with: infoData2) as! [String: Any]
+      #expect(json["original_name"] as? String == "first.txt")
+    }
+  }
+
+  @Test("Update writes info.json for new version")
+  func updateWritesInfo() async throws {
+    try await withTestStore { store, _, service in
+      let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("filechute-ingest-\(UUID().uuidString)")
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let fileURL = try createTempFile(in: dir, name: "doc.txt", contents: "version 1")
+      let v1 = try await service.ingest(fileAt: fileURL)
+
+      let updatedURL = try createTempFile(in: dir, name: "doc-v2.txt", contents: "version 2")
+      let v2 = try await service.update(objectId: v1.id, withFileAt: updatedURL)
+
+      #expect(store.infoExists(for: v2.hash))
+      let infoData = try Data(contentsOf: store.infoURL(for: v2.hash))
+      let json = try JSONSerialization.jsonObject(with: infoData) as! [String: Any]
+      #expect(json["original_name"] as? String == "doc-v2.txt")
+    }
+  }
+
   @Test("Ingestion of file without extension")
   func noExtension() async throws {
     try await withTestStore { _, db, service in

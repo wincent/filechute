@@ -71,6 +71,10 @@ public struct ObjectStore: Sendable {
     url(for: hash).appendingPathComponent("thumbnail.png")
   }
 
+  public func infoURL(for hash: ContentHash) -> URL {
+    url(for: hash).appendingPathComponent("info.json")
+  }
+
   public func exists(_ hash: ContentHash) -> Bool {
     FileManager.default.fileExists(atPath: dataURL(for: hash).path)
   }
@@ -113,5 +117,13 @@ public struct ObjectStore: Sendable {
       throw ObjectStoreError.objectNotFound(hash)
     }
     return try Data(contentsOf: thumbURL)
+  }
+
+  public func storeInfo(_ data: Data, for hash: ContentHash) throws {
+    try data.write(to: infoURL(for: hash))
+  }
+
+  public func infoExists(for hash: ContentHash) -> Bool {
+    FileManager.default.fileExists(atPath: infoURL(for: hash).path)
   }
 }
