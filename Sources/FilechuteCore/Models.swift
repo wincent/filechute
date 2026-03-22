@@ -72,6 +72,33 @@ public struct RenameEntry: Identifiable, Sendable, Hashable {
   }
 }
 
+public enum TagApplyState: Sendable, Hashable {
+  case none
+  case some
+  case all
+}
+
+public enum BulkTagState {
+  public static func compute(
+    tagName: String,
+    selectedObjectIds: Set<Int64>,
+    tagNamesByObject: [Int64: [String]]
+  ) -> TagApplyState {
+    let count = selectedObjectIds.count
+    guard count > 0 else { return .none }
+    var matched = 0
+    for objectId in selectedObjectIds {
+      let names = tagNamesByObject[objectId] ?? []
+      if names.contains(where: { $0.caseInsensitiveCompare(tagName) == .orderedSame }) {
+        matched += 1
+      }
+    }
+    if matched == 0 { return .none }
+    if matched == count { return .all }
+    return .some
+  }
+}
+
 public struct ObjectMetadata: Sendable, Hashable {
   public let objectId: Int64
   public let key: String

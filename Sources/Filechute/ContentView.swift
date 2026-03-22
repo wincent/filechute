@@ -20,6 +20,7 @@ struct ContentView: View {
   @State private var editingName = ""
   @FocusState private var isEditingFocused: Bool
   @State private var showColumnSettings = false
+  @State private var showBulkTagEditor = false
   @State private var keyMonitor = KeyEventMonitor()
   @SceneStorage("columnBrowserHeight") private var columnBrowserHeight: Double = 180
 
@@ -148,6 +149,15 @@ struct ContentView: View {
     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
       handleDrop(providers)
     }
+    .overlay {
+      if showBulkTagEditor {
+        BulkTagEditView(
+          selectedObjectIds: selection,
+          storeManager: storeManager,
+          onDismiss: { showBulkTagEditor = false }
+        )
+      }
+    }
   }
 
   private func setupKeyMonitor() {
@@ -160,6 +170,12 @@ struct ContentView: View {
     }
     keyMonitor.perform = { [self] effect in
       handleEffect(effect)
+    }
+    keyMonitor.onBulkTagEdit = { [self] in
+      showBulkTagEditor.toggle()
+    }
+    keyMonitor.isBulkTagEditorVisible = { [self] in
+      showBulkTagEditor
     }
   }
 

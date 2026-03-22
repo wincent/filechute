@@ -625,3 +625,82 @@ struct DatabaseTagNamesByObjectTests {
     #expect(result.isEmpty)
   }
 }
+
+@Suite("Database - Bulk tagging")
+struct DatabaseBulkTaggingTests {
+  @Test("Add same tag to multiple objects")
+  func addTagToMultiple() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a.pdf")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b.pdf")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "c.pdf")
+    let tag = try await db.getOrCreateTag(name: "important")
+
+    for id in [id1, id2, id3] {
+      try await db.addTag(tag.id, toObject: id)
+    }
+
+    let names = try await db.allTagNamesByObject()
+    #expect(names[id1]?.contains("important") == true)
+    #expect(names[id2]?.contains("important") == true)
+    #expect(names[id3]?.contains("important") == true)
+  }
+
+  @Test("Remove tag from multiple objects")
+  func removeTagFromMultiple() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a.pdf")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b.pdf")
+    let tag = try await db.getOrCreateTag(name: "temp")
+
+    try await db.addTag(tag.id, toObject: id1)
+    try await db.addTag(tag.id, toObject: id2)
+
+    for id in [id1, id2] {
+      try await db.removeTag(tag.id, fromObject: id)
+    }
+
+    let names = try await db.allTagNamesByObject()
+    #expect(names[id1]?.contains("temp") != true)
+    #expect(names[id2]?.contains("temp") != true)
+  }
+
+  @Test("Tag counts update after bulk add and remove")
+  func tagCountsAfterBulk() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a.pdf")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b.pdf")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "c.pdf")
+    let tag = try await db.getOrCreateTag(name: "bulk")
+
+    for id in [id1, id2, id3] {
+      try await db.addTag(tag.id, toObject: id)
+    }
+
+    let counts = try await db.allTagsWithCounts()
+    let bulkCount = counts.first { $0.tag.name == "bulk" }
+    #expect(bulkCount?.count == 3)
+
+    try await db.removeTag(tag.id, fromObject: id3)
+    let updated = try await db.allTagsWithCounts()
+    let newCount = updated.first { $0.tag.name == "bulk" }
+    #expect(newCount?.count == 2)
+  }
+
+  @Test("Partial tag application reflected in tag names by object")
+  func partialTagApplication() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a.pdf")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b.pdf")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "c.pdf")
+    let tag = try await db.getOrCreateTag(name: "partial")
+
+    try await db.addTag(tag.id, toObject: id1)
+    try await db.addTag(tag.id, toObject: id3)
+
+    let names = try await db.allTagNamesByObject()
+    #expect(names[id1]?.contains("partial") == true)
+    #expect(names[id2]?.contains("partial") != true)
+    #expect(names[id3]?.contains("partial") == true)
+  }
+}

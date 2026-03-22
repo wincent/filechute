@@ -68,6 +68,23 @@ final class StoreManager {
     try await refresh()
   }
 
+  func addTagToObjects(_ name: String, objectIds: Set<Int64>) async throws {
+    let tag = try await database.getOrCreateTag(name: name)
+    for objectId in objectIds {
+      try await database.addTag(tag.id, toObject: objectId)
+      try await database.touchModified(id: objectId)
+    }
+    try await refresh()
+  }
+
+  func removeTagFromObjects(_ tagId: Int64, objectIds: Set<Int64>) async throws {
+    for objectId in objectIds {
+      try await database.removeTag(tagId, fromObject: objectId)
+      try await database.touchModified(id: objectId)
+    }
+    try await refresh()
+  }
+
   func deleteObject(_ objectId: Int64) async throws {
     try await database.softDeleteObject(id: objectId)
     try await refresh()
