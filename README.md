@@ -8,6 +8,13 @@ A macOS app for tag-based file organization.
 make run
 ```
 
+## Formatting
+
+```
+bin/check-format   # lint
+bin/format         # auto-fix
+```
+
 ## Claude Code memory
 
 To keep Claude Code memory files tracked in the repo:
