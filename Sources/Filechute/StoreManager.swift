@@ -15,6 +15,7 @@ final class StoreManager {
   nonisolated let ingestionService: IngestionService
   nonisolated let fileAccessService: FileAccessService
   nonisolated let garbageCollector: GarbageCollector
+  nonisolated let thumbnailService: ThumbnailService
 
   nonisolated init(storeRoot: URL) throws {
     try FileManager.default.createDirectory(at: storeRoot, withIntermediateDirectories: true)
@@ -28,6 +29,7 @@ final class StoreManager {
       tmpDirectory: storeRoot.appendingPathComponent("tmp")
     )
     self.garbageCollector = GarbageCollector(objectStore: store, database: db)
+    self.thumbnailService = ThumbnailService(objectStore: store)
     Log.info("Initialized store at \(storeRoot.path)", category: .general)
   }
 
@@ -137,6 +139,10 @@ final class StoreManager {
     )
   }
 
+  func thumbnailURL(for object: StoredObject) -> URL {
+    objectStore.thumbnailURL(for: object.hash)
+  }
+
   func openObject(_ object: StoredObject) async throws {
     let url = try await temporaryCopyURL(for: object)
     try await database.touchLastOpened(id: object.id)
@@ -160,5 +166,21 @@ final class StoreManager {
       try await database.permanentlyDeleteObject(id: obj.id)
     }
     try await refresh()
+  }
+
+  func backfillThumbnails() async {
+    let allObjects = (try? await database.allObjects()) ?? []
+    var generated = 0
+    for object in allObjects {
+      if objectStore.thumbnailExists(for: object.hash) { continue }
+      let ext = (await fileExtension(for: object)) ?? ""
+      await thumbnailService.generateThumbnailFromStore(hash: object.hash, fileExtension: ext)
+      if objectStore.thumbnailExists(for: object.hash) {
+        generated += 1
+      }
+    }
+    if generated > 0 {
+      Log.info("Backfill: generated \(generated) thumbnails", category: .objectStore)
+    }
   }
 }

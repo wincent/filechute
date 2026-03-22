@@ -79,8 +79,8 @@ struct IntegrityCheckerTests {
       let (hash, _) = try store.store(data: data)
       _ = try await db.insertObject(hash: hash, name: "test.txt")
 
-      let objectURL = store.url(for: hash)
-      try Data("tampered".utf8).write(to: objectURL)
+      let dataURL = store.dataURL(for: hash)
+      try Data("tampered".utf8).write(to: dataURL)
 
       let report = try await checker.check()
       #expect(!report.isClean)

@@ -158,13 +158,17 @@ struct ObjectStoreTests {
       let data = Data("path test".utf8)
 
       let (hash, _) = try store.store(data: data)
-      let expectedURL =
+      let expectedDir =
         dir
         .appendingPathComponent("objects")
         .appendingPathComponent(hash.prefix)
         .appendingPathComponent(hash.suffix)
+      let expectedFile = expectedDir.appendingPathComponent("data.bin")
 
-      #expect(FileManager.default.fileExists(atPath: expectedURL.path))
+      var isDir: ObjCBool = false
+      #expect(FileManager.default.fileExists(atPath: expectedDir.path, isDirectory: &isDir))
+      #expect(isDir.boolValue)
+      #expect(FileManager.default.fileExists(atPath: expectedFile.path))
     }
   }
 
@@ -205,7 +209,7 @@ struct ObjectStoreTests {
       let data = Data("original content".utf8)
 
       let (hash, _) = try store.store(data: data)
-      try Data("tampered".utf8).write(to: store.url(for: hash))
+      try Data("tampered".utf8).write(to: store.dataURL(for: hash))
 
       #expect(try !store.verify(hash))
     }
@@ -217,5 +221,108 @@ struct ObjectStoreTests {
     let hash = ContentHash(hexString: hex)
     #expect(hash.description == hex)
     #expect("\(hash)" == hex)
+  }
+
+  @Test("dataURL points to data.bin inside object directory")
+  func dataURLPath() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("test".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      let dataURL = store.dataURL(for: hash)
+      #expect(dataURL.lastPathComponent == "data.bin")
+      #expect(dataURL.deletingLastPathComponent() == store.url(for: hash))
+      #expect(FileManager.default.fileExists(atPath: dataURL.path))
+    }
+  }
+
+  @Test("thumbnailURL points to thumbnail.png inside object directory")
+  func thumbnailURLPath() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("test".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      let thumbURL = store.thumbnailURL(for: hash)
+      #expect(thumbURL.lastPathComponent == "thumbnail.png")
+      #expect(thumbURL.deletingLastPathComponent() == store.url(for: hash))
+    }
+  }
+
+  @Test("Store and read thumbnail")
+  func storeThumbnail() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("object data".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      #expect(!store.thumbnailExists(for: hash))
+
+      let thumbData = Data("fake png".utf8)
+      try store.storeThumbnail(data: thumbData, for: hash)
+
+      #expect(store.thumbnailExists(for: hash))
+      let readBack = try store.readThumbnail(for: hash)
+      #expect(readBack == thumbData)
+    }
+  }
+
+  @Test("thumbnailExists returns false when no thumbnail stored")
+  func thumbnailNotExists() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("no thumb".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      #expect(!store.thumbnailExists(for: hash))
+    }
+  }
+
+  @Test("readThumbnail throws for missing thumbnail")
+  func readThumbnailMissing() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("no thumb".utf8)
+      let (hash, _) = try store.store(data: data)
+
+      #expect(throws: ObjectStoreError.self) {
+        try store.readThumbnail(for: hash)
+      }
+    }
+  }
+
+  @Test("Remove deletes thumbnail along with data")
+  func removeDeletesThumbnail() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let data = Data("with thumb".utf8)
+      let (hash, _) = try store.store(data: data)
+      try store.storeThumbnail(data: Data("thumb".utf8), for: hash)
+
+      #expect(store.exists(hash))
+      #expect(store.thumbnailExists(for: hash))
+
+      try store.remove(hash)
+      #expect(!store.exists(hash))
+      #expect(!store.thumbnailExists(for: hash))
+      #expect(!FileManager.default.fileExists(atPath: store.url(for: hash).path))
+    }
+  }
+
+  @Test("Store from file creates directory with data.bin")
+  func storeFileCreatesDirectory() throws {
+    try withTempDir { dir in
+      let store = try ObjectStore(rootDirectory: dir)
+      let fileURL = try createTempFile(in: dir, name: "doc.txt", contents: "hello")
+      let (hash, _) = try store.store(fileAt: fileURL)
+
+      var isDir: ObjCBool = false
+      FileManager.default.fileExists(
+        atPath: store.url(for: hash).path, isDirectory: &isDir
+      )
+      #expect(isDir.boolValue)
+      #expect(FileManager.default.fileExists(atPath: store.dataURL(for: hash).path))
+    }
   }
 }

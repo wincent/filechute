@@ -22,14 +22,13 @@ public struct ObjectStore: Sendable {
       return (contentHash, false)
     }
 
-    let objectURL = url(for: contentHash)
-    let directoryURL = objectURL.deletingLastPathComponent()
-    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let objectDir = url(for: contentHash)
+    try FileManager.default.createDirectory(at: objectDir, withIntermediateDirectories: true)
 
     do {
-      try FileManager.default.copyItem(at: sourceURL, to: objectURL)
+      try FileManager.default.copyItem(at: sourceURL, to: dataURL(for: contentHash))
     } catch {
-      throw ObjectStoreError.writeFailed(objectURL, underlying: error)
+      throw ObjectStoreError.writeFailed(objectDir, underlying: error)
     }
 
     Log.debug(
@@ -46,14 +45,13 @@ public struct ObjectStore: Sendable {
       return (contentHash, false)
     }
 
-    let objectURL = url(for: contentHash)
-    let directoryURL = objectURL.deletingLastPathComponent()
-    try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+    let objectDir = url(for: contentHash)
+    try FileManager.default.createDirectory(at: objectDir, withIntermediateDirectories: true)
 
     do {
-      try data.write(to: objectURL)
+      try data.write(to: dataURL(for: contentHash))
     } catch {
-      throw ObjectStoreError.writeFailed(objectURL, underlying: error)
+      throw ObjectStoreError.writeFailed(objectDir, underlying: error)
     }
 
     return (contentHash, true)
@@ -65,16 +63,24 @@ public struct ObjectStore: Sendable {
       .appendingPathComponent(hash.suffix)
   }
 
+  public func dataURL(for hash: ContentHash) -> URL {
+    url(for: hash).appendingPathComponent("data.bin")
+  }
+
+  public func thumbnailURL(for hash: ContentHash) -> URL {
+    url(for: hash).appendingPathComponent("thumbnail.png")
+  }
+
   public func exists(_ hash: ContentHash) -> Bool {
-    FileManager.default.fileExists(atPath: url(for: hash).path)
+    FileManager.default.fileExists(atPath: dataURL(for: hash).path)
   }
 
   public func read(_ hash: ContentHash) throws -> Data {
-    let objectURL = url(for: hash)
-    guard FileManager.default.fileExists(atPath: objectURL.path) else {
+    let fileURL = dataURL(for: hash)
+    guard FileManager.default.fileExists(atPath: fileURL.path) else {
       throw ObjectStoreError.objectNotFound(hash)
     }
-    return try Data(contentsOf: objectURL)
+    return try Data(contentsOf: fileURL)
   }
 
   public func verify(_ hash: ContentHash) throws -> Bool {
@@ -84,11 +90,28 @@ public struct ObjectStore: Sendable {
   }
 
   public func remove(_ hash: ContentHash) throws {
-    let objectURL = url(for: hash)
-    guard FileManager.default.fileExists(atPath: objectURL.path) else {
+    let objectDir = url(for: hash)
+    guard FileManager.default.fileExists(atPath: objectDir.path) else {
       throw ObjectStoreError.objectNotFound(hash)
     }
-    try FileManager.default.removeItem(at: objectURL)
+    try FileManager.default.removeItem(at: objectDir)
     Log.debug("Removed blob \(hash.hexString.prefix(8))", category: .objectStore)
+  }
+
+  public func storeThumbnail(data: Data, for hash: ContentHash) throws {
+    let thumbURL = thumbnailURL(for: hash)
+    try data.write(to: thumbURL)
+  }
+
+  public func thumbnailExists(for hash: ContentHash) -> Bool {
+    FileManager.default.fileExists(atPath: thumbnailURL(for: hash).path)
+  }
+
+  public func readThumbnail(for hash: ContentHash) throws -> Data {
+    let thumbURL = thumbnailURL(for: hash)
+    guard FileManager.default.fileExists(atPath: thumbURL.path) else {
+      throw ObjectStoreError.objectNotFound(hash)
+    }
+    return try Data(contentsOf: thumbURL)
   }
 }

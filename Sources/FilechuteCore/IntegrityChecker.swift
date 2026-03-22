@@ -58,6 +58,14 @@ public struct IntegrityChecker: Sendable {
 
         if let suffixes = try? fm.contentsOfDirectory(atPath: prefixDir.path) {
           for suffix in suffixes {
+            let objectDir = prefixDir.appendingPathComponent(suffix)
+            var objIsDir: ObjCBool = false
+            guard fm.fileExists(atPath: objectDir.path, isDirectory: &objIsDir),
+              objIsDir.boolValue
+            else {
+              continue
+            }
+
             report.blobsScanned += 1
             let fullHash = prefix + suffix
             if !knownHashes.contains(fullHash) {

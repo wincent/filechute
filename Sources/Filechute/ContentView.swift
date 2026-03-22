@@ -23,6 +23,8 @@ struct ContentView: View {
   @State private var showBulkTagEditor = false
   @State private var keyMonitor = KeyEventMonitor()
   @SceneStorage("columnBrowserHeight") private var columnBrowserHeight: Double = 180
+  @SceneStorage("viewMode") private var viewMode: String = "table"
+  @State private var gridColumnCount = 4
 
   var selectedObject: StoredObject? {
     guard selection.count == 1, let id = selection.first else { return nil }
@@ -68,6 +70,19 @@ struct ContentView: View {
             emptyStateView
           } else if displayedObjects.isEmpty {
             ContentUnavailableView.search(text: searchText)
+          } else if viewMode == "preview" {
+            PreviewGridView(
+              storeManager: storeManager,
+              objects: displayedObjects,
+              selection: $selection,
+              columnCount: $gridColumnCount,
+              onOpen: { obj in
+                Task { try? await storeManager.openObject(obj) }
+              },
+              onQuickLook: { obj in
+                activateQuickLook(for: obj)
+              }
+            )
           } else {
             tableView
           }
@@ -99,6 +114,19 @@ struct ContentView: View {
       }
       .navigationTitle("Filechute")
       .toolbar {
+        ToolbarItem(placement: .primaryAction) {
+          Picker("View Mode", selection: $viewMode) {
+            Image(systemName: "list.bullet")
+              .tag("table")
+              .accessibilityLabel("Table view")
+            Image(systemName: "square.grid.2x2")
+              .tag("preview")
+              .accessibilityLabel("Preview grid")
+          }
+          .pickerStyle(.segmented)
+          .fixedSize()
+          .keyboardShortcut(viewMode == "table" ? "2" : "1", modifiers: .command)
+        }
         ToolbarItem(placement: .primaryAction) {
           Button {
             openFilePicker()
@@ -150,6 +178,17 @@ struct ContentView: View {
     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
       handleDrop(providers)
     }
+    .onChange(of: selection) { _, newSelection in
+      guard viewMode == "preview", quickLookCoordinator.isVisible,
+        newSelection.count == 1, let id = newSelection.first,
+        let obj = displayedObjects.first(where: { $0.id == id })
+      else { return }
+      Task {
+        if let url = try? await storeManager.temporaryCopyURL(for: obj) {
+          quickLookCoordinator.updatePreview(for: url)
+        }
+      }
+    }
     .overlay {
       if showBulkTagEditor {
         BulkTagEditView(
@@ -166,7 +205,9 @@ struct ContentView: View {
       InteractionContext(
         isEditing: editingObjectId != nil,
         hasSelection: !selection.isEmpty,
-        isQuickLookVisible: quickLookCoordinator.isVisible
+        isQuickLookVisible: quickLookCoordinator.isVisible,
+        isGridMode: viewMode == "preview",
+        gridColumnCount: gridColumnCount
       )
     }
     keyMonitor.perform = { [self] effect in

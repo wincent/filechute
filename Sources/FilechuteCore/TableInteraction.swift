@@ -3,6 +3,8 @@ public enum KeyInput: Sendable, Hashable {
   case escape
   case upArrow
   case downArrow
+  case leftArrow
+  case rightArrow
   case space
   case commandDown
 }
@@ -12,17 +14,23 @@ public struct InteractionContext: Sendable, Hashable {
   public var isTextFieldFocused: Bool
   public var hasSelection: Bool
   public var isQuickLookVisible: Bool
+  public var isGridMode: Bool
+  public var gridColumnCount: Int
 
   public init(
     isEditing: Bool = false,
     isTextFieldFocused: Bool = false,
     hasSelection: Bool = false,
-    isQuickLookVisible: Bool = false
+    isQuickLookVisible: Bool = false,
+    isGridMode: Bool = false,
+    gridColumnCount: Int = 1
   ) {
     self.isEditing = isEditing
     self.isTextFieldFocused = isTextFieldFocused
     self.hasSelection = hasSelection
     self.isQuickLookVisible = isQuickLookVisible
+    self.isGridMode = isGridMode
+    self.gridColumnCount = gridColumnCount
   }
 }
 
@@ -49,11 +57,29 @@ public enum TableInteraction {
       return .passthrough
 
     case .upArrow:
+      if context.isQuickLookVisible && context.isGridMode {
+        return .navigateQuickLook(direction: -context.gridColumnCount)
+      }
       if context.isQuickLookVisible { return .navigateQuickLook(direction: -1) }
       return .passthrough
 
     case .downArrow:
+      if context.isQuickLookVisible && context.isGridMode {
+        return .navigateQuickLook(direction: context.gridColumnCount)
+      }
       if context.isQuickLookVisible { return .navigateQuickLook(direction: 1) }
+      return .passthrough
+
+    case .leftArrow:
+      if context.isQuickLookVisible && context.isGridMode {
+        return .navigateQuickLook(direction: -1)
+      }
+      return .passthrough
+
+    case .rightArrow:
+      if context.isQuickLookVisible && context.isGridMode {
+        return .navigateQuickLook(direction: 1)
+      }
       return .passthrough
 
     case .space:

@@ -4,10 +4,12 @@ import UniformTypeIdentifiers
 public struct IngestionService: Sendable {
   public let objectStore: ObjectStore
   public let database: Database
+  public let thumbnailService: ThumbnailService
 
   public init(objectStore: ObjectStore, database: Database) {
     self.objectStore = objectStore
     self.database = database
+    self.thumbnailService = ThumbnailService(objectStore: objectStore)
   }
 
   public func ingest(
@@ -16,6 +18,8 @@ public struct IngestionService: Sendable {
     tags: [String] = []
   ) async throws -> StoredObject {
     let (hash, _) = try objectStore.store(fileAt: sourceURL)
+
+    await thumbnailService.generateThumbnail(for: sourceURL, hash: hash)
 
     if let existing = try await database.getObject(byHash: hash) {
       Log.debug(
@@ -68,6 +72,8 @@ public struct IngestionService: Sendable {
     }
 
     let (newHash, _) = try objectStore.store(fileAt: sourceURL)
+
+    await thumbnailService.generateThumbnail(for: sourceURL, hash: newHash)
 
     if newHash == existing.hash {
       Log.debug("Content unchanged for object \(objectId)", category: .ingestion)

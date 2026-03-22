@@ -64,6 +64,9 @@ struct RootView: View {
         let manager = try StoreManager(storeRoot: storeRoot)
         try await manager.refresh()
         self.storeManager = manager
+        Task.detached(priority: .background) {
+          await manager.backfillThumbnails()
+        }
       } catch {
         self.loadError = error.localizedDescription
       }

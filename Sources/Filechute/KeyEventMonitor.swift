@@ -64,6 +64,8 @@ final class KeyEventMonitor {
       switch keyCode {
       case 36: .returnKey
       case 53: .escape
+      case 123: .leftArrow
+      case 124: .rightArrow
       case 125:
         modifiers.contains(.command) ? .commandDown : .downArrow
       case 126: .upArrow
