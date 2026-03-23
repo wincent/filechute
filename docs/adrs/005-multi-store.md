@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 Filechute currently has a single hardcoded store at
-`~/Library/Application Support/dev.wincent.Filechute/stores/default`. There is
+`~/Library/Application Support/Filechute/stores/default`. There is
 no way to create additional stores, open stores from arbitrary locations, or
 treat stores as first-class Finder objects. Multi-store support is also a
 prerequisite for running high-level acceptance tests against isolated stores.

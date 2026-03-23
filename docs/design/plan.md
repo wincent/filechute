@@ -165,7 +165,7 @@ Tags are case-insensitive and flat (no namespaces or hierarchies).
 
 Store root is **not user-configurable** (to keep Mac App Store sandboxing simple). The app manages stores within its own container.
 
-Default store: `~/Library/Application Support/dev.wincent.Filechute/stores/<store-id>/`
+Default store: `~/Library/Application Support/Filechute/stores/<store-id>/`
 
 Each store has the structure:
 
