@@ -62,6 +62,7 @@ public enum TableInteraction {
       return .passthrough
 
     case .upArrow:
+      if context.isTextFieldFocused { return .passthrough }
       if context.isQuickLookVisible && context.isGridMode {
         return .navigateQuickLook(direction: -context.gridColumnCount)
       }
@@ -69,6 +70,7 @@ public enum TableInteraction {
       return .passthrough
 
     case .downArrow:
+      if context.isTextFieldFocused { return .passthrough }
       if context.isQuickLookVisible && context.isGridMode {
         return .navigateQuickLook(direction: context.gridColumnCount)
       }

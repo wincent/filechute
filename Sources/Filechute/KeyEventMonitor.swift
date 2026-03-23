@@ -77,7 +77,7 @@ final class KeyEventMonitor {
     guard let input else { return false }
 
     var ctx = context()
-    if keyCode == 36 || keyCode == 53 {
+    if keyCode == 36 || keyCode == 53 || keyCode == 125 || keyCode == 126 {
       ctx.isTextFieldFocused = isTextFieldFocused()
     }
 

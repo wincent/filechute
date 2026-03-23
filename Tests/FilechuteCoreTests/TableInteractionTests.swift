@@ -77,6 +77,18 @@ struct ArrowKeyTests {
     let ctx = InteractionContext()
     #expect(TableInteraction.reduce(key: .downArrow, context: ctx) == .passthrough)
   }
+
+  @Test("Up arrow passes through when text field focused even with Quick Look visible")
+  func upArrowPassesThroughTextFieldFocused() {
+    let ctx = InteractionContext(isTextFieldFocused: true, isQuickLookVisible: true)
+    #expect(TableInteraction.reduce(key: .upArrow, context: ctx) == .passthrough)
+  }
+
+  @Test("Down arrow passes through when text field focused even with Quick Look visible")
+  func downArrowPassesThroughTextFieldFocused() {
+    let ctx = InteractionContext(isTextFieldFocused: true, isQuickLookVisible: true)
+    #expect(TableInteraction.reduce(key: .downArrow, context: ctx) == .passthrough)
+  }
 }
 
 @Suite("TableInteraction - Space key")

@@ -20,14 +20,6 @@ struct BulkTagEditView: View {
     }
   }
 
-  private var suggestions: [Tag] {
-    guard !newTagName.isEmpty else { return [] }
-    let lower = newTagName.lowercased()
-    return storeManager.allTags
-      .map(\.tag)
-      .filter { $0.name.lowercased().hasPrefix(lower) }
-  }
-
   var body: some View {
     ZStack {
       Color.black.opacity(0.3)
@@ -143,46 +135,14 @@ struct BulkTagEditView: View {
   }
 
   private var addTagField: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      HStack {
-        TextField("Add tag", text: $newTagName)
-          .textFieldStyle(.roundedBorder)
-          .onSubmit { submitNewTag() }
-        Button(action: submitNewTag) {
-          Image(systemName: "plus.circle.fill")
-        }
-        .buttonStyle(.borderless)
-        .disabled(newTagName.trimmingCharacters(in: .whitespaces).isEmpty)
+    TagAutocompleteField(
+      text: $newTagName,
+      existingTags: storeManager.allTags.map(\.tag)
+    ) { name in
+      newTagName = ""
+      Task {
+        try? await storeManager.addTagToObjects(name, objectIds: selectedObjectIds)
       }
-
-      if !suggestions.isEmpty {
-        VStack(alignment: .leading, spacing: 2) {
-          ForEach(suggestions.prefix(5)) { tag in
-            Button {
-              newTagName = tag.name
-              submitNewTag()
-            } label: {
-              Text(tag.name)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-            }
-            .buttonStyle(.plain)
-          }
-        }
-        .padding(4)
-        .background(.bar)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-      }
-    }
-  }
-
-  private func submitNewTag() {
-    let name = newTagName.trimmingCharacters(in: .whitespaces)
-    guard !name.isEmpty else { return }
-    newTagName = ""
-    Task {
-      try? await storeManager.addTagToObjects(name, objectIds: selectedObjectIds)
     }
   }
 }
