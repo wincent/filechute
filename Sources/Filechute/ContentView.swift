@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
   var storeManager: StoreManager
+  var onRenameStore: (String) -> Void = { _ in }
   @State private var selection: Set<Int64> = []
   @State private var showInspector = true
   @State private var showColumnBrowser = true
@@ -57,10 +58,14 @@ struct ContentView: View {
 
   var body: some View {
     NavigationSplitView {
-      SidebarView(storeManager: storeManager, selection: $sidebarSelection)
+      SidebarView(
+        storeManager: storeManager,
+        selection: $sidebarSelection,
+        onRename: onRenameStore
+      )
     } detail: {
       switch sidebarSelection {
-      case .allItems:
+      case .store, .allItems:
         allItemsView
       case .trash:
         TrashView(storeManager: storeManager, showInspector: $showInspector)

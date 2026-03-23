@@ -11,6 +11,7 @@ final class StoreManager {
   private(set) var tagNamesByObject: [Int64: [String]] = [:]
   private(set) var sizesByObject: [Int64: UInt64] = [:]
 
+  nonisolated let storeRoot: URL
   nonisolated let objectStore: ObjectStore
   nonisolated let database: Database
   nonisolated let ingestionService: IngestionService
@@ -18,7 +19,12 @@ final class StoreManager {
   nonisolated let garbageCollector: GarbageCollector
   nonisolated let thumbnailService: ThumbnailService
 
+  nonisolated var storeName: String {
+    storeRoot.deletingPathExtension().lastPathComponent
+  }
+
   nonisolated init(storeRoot: URL) throws {
+    self.storeRoot = storeRoot
     try FileManager.default.createDirectory(at: storeRoot, withIntermediateDirectories: true)
     let store = try ObjectStore(rootDirectory: storeRoot)
     let db = try Database(path: storeRoot.appendingPathComponent("filechute.db").path)
