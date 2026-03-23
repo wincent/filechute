@@ -159,6 +159,20 @@ public struct Folder: Identifiable, Sendable, Hashable {
     self.createdAt = createdAt
     self.deletedAt = deletedAt
   }
+
+  public static func expandableFolderIds(
+    under folderId: Int64,
+    in folders: [Folder]
+  ) -> Set<Int64> {
+    var result: Set<Int64> = [folderId]
+    for child in folders where child.parentId == folderId {
+      let hasChildren = folders.contains { $0.parentId == child.id }
+      if hasChildren {
+        result.formUnion(expandableFolderIds(under: child.id, in: folders))
+      }
+    }
+    return result
+  }
 }
 
 public struct ObjectMetadata: Sendable, Hashable {

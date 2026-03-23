@@ -138,7 +138,11 @@ struct SidebarView: View {
       let isExpanded = Binding(
         get: { expandedFolderIdSet.contains(folder.id) },
         set: { newValue in
-          setFolderExpanded(folder.id, expanded: newValue)
+          if NSEvent.modifierFlags.contains(.option) {
+            toggleRecursive(folder.id, expanded: newValue)
+          } else {
+            setFolderExpanded(folder.id, expanded: newValue)
+          }
         }
       )
       return AnyView(
@@ -156,22 +160,13 @@ struct SidebarView: View {
 
   private func toggleRecursive(_ folderId: Int64, expanded: Bool) {
     var ids = expandedFolderIdSet
-    collectDescendants(of: folderId, into: &ids, expanded: expanded)
-    expandedFolderIds = ids.map(String.init).joined(separator: ",")
-  }
-
-  private func collectDescendants(of folderId: Int64, into ids: inout Set<Int64>, expanded: Bool) {
+    let expandable = Folder.expandableFolderIds(under: folderId, in: storeManager.folders)
     if expanded {
-      ids.insert(folderId)
+      ids.formUnion(expandable)
     } else {
-      ids.remove(folderId)
+      ids.subtract(expandable)
     }
-    for child in storeManager.folders where child.parentId == folderId {
-      let hasChildren = storeManager.folders.contains { $0.parentId == child.id }
-      if hasChildren {
-        collectDescendants(of: child.id, into: &ids, expanded: expanded)
-      }
-    }
+    expandedFolderIds = ids.map(String.init).joined(separator: ",")
   }
 
   @ViewBuilder
