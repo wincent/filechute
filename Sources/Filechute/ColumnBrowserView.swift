@@ -5,6 +5,7 @@ struct ColumnBrowserView: View {
   var storeManager: StoreManager
   @Binding var filteredObjects: [StoredObject]?
   @State private var columns: [BrowserColumn] = []
+  @State private var columnWidths: [Int: CGFloat] = [:]
   @FocusState private var focusedColumn: Int?
 
   var body: some View {
@@ -17,6 +18,7 @@ struct ColumnBrowserView: View {
           columnIndex: 0,
           focusedColumn: $focusedColumn,
           columnCount: visibleColumnCount,
+          width: columnWidths[0] ?? 180,
           onSelect: { tagIds in
             selectTags(tagIds, atLevel: 0)
           }
@@ -25,7 +27,12 @@ struct ColumnBrowserView: View {
 
         ForEach(Array(columns.enumerated()), id: \.offset) { index, column in
           if !column.reachableTags.isEmpty {
-            Divider()
+            ColumnDivider(
+              width: columnWidthBinding(index),
+              minWidth: 100,
+              maxWidth: 400,
+              onResizeAll: setAllColumnWidths
+            )
             BrowserColumnView(
               title: "Refine",
               items: column.reachableTags,
@@ -33,6 +40,7 @@ struct ColumnBrowserView: View {
               columnIndex: index + 1,
               focusedColumn: $focusedColumn,
               columnCount: visibleColumnCount,
+              width: columnWidths[index + 1] ?? 180,
               onSelect: { tagIds in
                 selectTags(tagIds, atLevel: index + 1)
               }
@@ -95,6 +103,19 @@ struct ColumnBrowserView: View {
   private var visibleColumnCount: Int {
     1 + columns.filter { !$0.reachableTags.isEmpty }.count
   }
+
+  private func setAllColumnWidths(_ width: CGFloat) {
+    for i in 0..<visibleColumnCount {
+      columnWidths[i] = width
+    }
+  }
+
+  private func columnWidthBinding(_ index: Int) -> Binding<CGFloat> {
+    Binding(
+      get: { columnWidths[index] ?? 180 },
+      set: { columnWidths[index] = $0 }
+    )
+  }
 }
 
 struct BrowserColumn: Identifiable {
@@ -115,6 +136,7 @@ struct BrowserColumnView: View {
   let columnIndex: Int
   var focusedColumn: FocusState<Int?>.Binding
   let columnCount: Int
+  let width: CGFloat
   let onSelect: (Set<Int64>) -> Void
 
   @State private var localSelection: Set<Int64> = []
@@ -171,7 +193,7 @@ struct BrowserColumnView: View {
         onSelect(newValue)
       }
     }
-    .frame(width: 180)
+    .frame(width: width)
     .onAppear {
       if let selection {
         localSelection = selection
@@ -216,5 +238,47 @@ struct BrowserColumnView: View {
     .menuStyle(.borderlessButton)
     .fixedSize()
     .accessibilityLabel("Sort order")
+  }
+}
+
+struct ColumnDivider: View {
+  @Binding var width: CGFloat
+  let minWidth: CGFloat
+  let maxWidth: CGFloat
+  var onResizeAll: ((CGFloat) -> Void)?
+  @State private var startWidth: CGFloat?
+
+  var body: some View {
+    Rectangle()
+      .fill(Color(nsColor: .separatorColor))
+      .frame(width: 1)
+      .frame(maxHeight: .infinity)
+      .overlay {
+        Rectangle()
+          .fill(Color.clear)
+          .frame(width: 8)
+          .contentShape(Rectangle())
+          .cursor(.resizeLeftRight)
+          .gesture(
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
+              .onChanged { value in
+                if startWidth == nil {
+                  startWidth = width
+                }
+                let newWidth = min(
+                  max((startWidth ?? width) + value.translation.width, minWidth),
+                  maxWidth
+                )
+                if NSEvent.modifierFlags.contains(.option) {
+                  onResizeAll?(newWidth)
+                } else {
+                  width = newWidth
+                }
+              }
+              .onEnded { _ in
+                startWidth = nil
+              }
+          )
+      }
   }
 }
