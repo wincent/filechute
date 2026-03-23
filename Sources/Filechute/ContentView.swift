@@ -28,6 +28,8 @@ struct ContentView: View {
   @State private var gridColumnCount = 4
   @SceneStorage("thumbnailSize") private var thumbnailSize: Double = 128
   @State private var sidebarSelection: NavigationSection? = .allItems
+  @State private var folderObjects: [StoredObject]?
+  @SceneStorage("expandedFolderIds") private var expandedFolderIds: String = ""
   @Environment(\.undoManager) private var undoManager
 
   var selectedObject: StoredObject? {
@@ -36,7 +38,7 @@ struct ContentView: View {
   }
 
   var displayedObjects: [StoredObject] {
-    var result = filteredObjects ?? storeManager.objects
+    var result = folderObjects ?? filteredObjects ?? storeManager.objects
     if !searchText.isEmpty {
       let terms =
         searchText
@@ -61,12 +63,17 @@ struct ContentView: View {
       SidebarView(
         storeManager: storeManager,
         selection: $sidebarSelection,
+        expandedFolderIds: $expandedFolderIds,
         onRename: onRenameStore
       )
     } detail: {
       switch sidebarSelection {
       case .store, .allItems:
         allItemsView
+          .navigationTitle("All Items")
+      case .folder(let folderId):
+        allItemsView
+          .navigationTitle(storeManager.folders.first { $0.id == folderId }?.name ?? "Folder")
       case .trash:
         TrashView(storeManager: storeManager, showInspector: $showInspector)
       case nil:
@@ -80,8 +87,15 @@ struct ContentView: View {
     .onDisappear {
       keyMonitor.uninstall()
     }
-    .onChange(of: sidebarSelection) { _, _ in
+    .onChange(of: sidebarSelection) { _, newSelection in
       selection = []
+      loadFolderObjects(for: newSelection)
+    }
+    .onChange(of: storeManager.folders) { _, _ in
+      loadFolderObjects(for: sidebarSelection)
+    }
+    .onChange(of: storeManager.objects) { _, _ in
+      loadFolderObjects(for: sidebarSelection)
     }
   }
 
@@ -120,7 +134,22 @@ struct ContentView: View {
             },
             onDelete: { ids in
               deleteWithUndo(ids)
-            }
+            },
+            currentFolderId: sidebarSelection?.folderId,
+            onRemoveFromFolder: sidebarSelection?.folderId != nil
+              ? { objectId, folderId in
+                Task {
+                  if let folder = try? await storeManager.directFolderForObject(
+                    objectId, inSubtreeOf: folderId
+                  ) {
+                    try? await storeManager.removeItemFromFolder(
+                      objectId: objectId, folderId: folder.id
+                    )
+                    loadFolderObjects(for: sidebarSelection)
+                  }
+                }
+              } : nil,
+            dragProvider: { ids in dragProvider(for: ids) }
           )
         } else {
           tableView
@@ -161,7 +190,6 @@ struct ContentView: View {
           .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
       }
     }
-    .navigationTitle("All Items")
     .toolbar {
       ToolbarItem(placement: .primaryAction) {
         Picker("View Mode", selection: $viewMode) {
@@ -239,6 +267,15 @@ struct ContentView: View {
         )
       }
     }
+    .sheet(
+      isPresented: Binding(
+        get: { storeManager.ingestionProgress.isActive },
+        set: { _ in }
+      )
+    ) {
+      IngestionProgressView(progress: storeManager.ingestionProgress)
+        .interactiveDismissDisabled()
+    }
   }
 
   private func setupKeyMonitor() {
@@ -260,6 +297,15 @@ struct ContentView: View {
     }
     keyMonitor.isBulkTagEditorVisible = { [self] in
       showBulkTagEditor
+    }
+    keyMonitor.isFolderSelected = { [self] in
+      if case .folder = sidebarSelection, selection.isEmpty { return true }
+      return false
+    }
+    keyMonitor.onDeleteFolder = { [self] in
+      if case .folder(let folderId) = sidebarSelection {
+        deleteFolderWithUndo(folderId)
+      }
     }
   }
 
@@ -367,9 +413,16 @@ struct ContentView: View {
             startRename(for: obj)
           }
         }
+        if case .folder(let folderId) = sidebarSelection {
+          Divider()
+          removeFromFolderButton(objectIds: ids, rootFolderId: folderId)
+        }
         Divider()
       }
       if !ids.isEmpty {
+        if !storeManager.folders.isEmpty {
+          addToFolderMenu(objectIds: ids)
+        }
         Button("Move to Trash", role: .destructive) {
           deleteWithUndo(ids)
         }
@@ -393,6 +446,74 @@ struct ContentView: View {
       }
       return .ignored
     }
+  }
+
+  private func loadFolderObjects(for section: NavigationSection?) {
+    guard case .folder(let folderId) = section else {
+      folderObjects = nil
+      return
+    }
+    Task {
+      folderObjects = try? await storeManager.itemsInFolder(folderId, recursive: true)
+    }
+  }
+
+  private func dragProvider(for objectIds: [Int64]) -> NSItemProvider {
+    let payload = DraggedObjectIDs(ids: objectIds)
+    let internalData = try? JSONEncoder().encode(payload)
+
+    if objectIds.count == 1, let id = objectIds.first,
+      let obj = displayedObjects.first(where: { $0.id == id })
+    {
+      let contentType = UTType(filenameExtension: obj.fileExtension) ?? .data
+      let nameWithExt =
+        obj.fileExtension.isEmpty || obj.name.hasSuffix(".\(obj.fileExtension)")
+        ? obj.name : "\(obj.name).\(obj.fileExtension)"
+      let fileAccess = storeManager.fileAccessService
+      let database = storeManager.database
+      let provider = NSItemProvider()
+      provider.registerFileRepresentation(
+        forTypeIdentifier: contentType.identifier,
+        fileOptions: [],
+        visibility: .all
+      ) { completion in
+        Task.detached {
+          do {
+            let ext = try await database.getMetadata(objectId: obj.id, key: "extension")
+            let url = try fileAccess.openTemporaryCopy(
+              hash: obj.hash, name: obj.name, extension: ext
+            )
+            completion(url, false, nil)
+          } catch {
+            completion(nil, false, error)
+          }
+        }
+        return nil
+      }
+      if let internalData {
+        provider.registerDataRepresentation(
+          forTypeIdentifier: UTType.filechuteObjectIDs.identifier,
+          visibility: .ownProcess
+        ) { completion in
+          completion(internalData, nil)
+          return nil
+        }
+      }
+      provider.suggestedName = nameWithExt
+      return provider
+    }
+
+    let provider = NSItemProvider()
+    if let internalData {
+      provider.registerDataRepresentation(
+        forTypeIdentifier: UTType.filechuteObjectIDs.identifier,
+        visibility: .ownProcess
+      ) { completion in
+        completion(internalData, nil)
+        return nil
+      }
+    }
+    return provider
   }
 
   private func openSelected() {
@@ -488,12 +609,26 @@ struct ContentView: View {
     let panel = NSOpenPanel()
     panel.allowsMultipleSelection = true
     panel.canChooseFiles = true
-    panel.canChooseDirectories = false
-    panel.message = "Choose files to add to Filechute"
+    panel.canChooseDirectories = true
+    panel.message = "Choose files or folders to add to Filechute"
     if panel.runModal() == .OK {
-      Log.debug("File picker: \(panel.urls.count) files selected", category: .ui)
+      Log.debug("File picker: \(panel.urls.count) items selected", category: .ui)
       Task {
-        try? await storeManager.ingest(urls: panel.urls)
+        var files: [URL] = []
+        for url in panel.urls {
+          var isDir: ObjCBool = false
+          if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+            isDir.boolValue,
+            url.pathExtension.lowercased() != "filechute"
+          {
+            try? await storeManager.ingestDirectory(at: url)
+          } else {
+            files.append(url)
+          }
+        }
+        if !files.isEmpty {
+          try? await storeManager.ingest(urls: files)
+        }
       }
     }
   }
@@ -509,12 +644,149 @@ struct ContentView: View {
             let url = URL(dataRepresentation: data, relativeTo: nil)
           else { return }
           Task { @MainActor in
-            try? await storeManager.ingest(urls: [url])
+            var isDir: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+            if exists && isDir.boolValue && url.pathExtension.lowercased() != "filechute" {
+              try? await storeManager.ingestDirectory(at: url)
+            } else {
+              try? await storeManager.ingest(urls: [url])
+            }
           }
         }
       }
     }
     return didHandle
+  }
+
+  @ViewBuilder
+  private func removeFromFolderButton(objectIds: Set<Int64>, rootFolderId: Int64) -> some View {
+    if objectIds.count == 1, let objectId = objectIds.first {
+      let folderName =
+        storeManager.folders.first { $0.id == rootFolderId }?.name ?? "Folder"
+      Button("Remove from \"\(folderName)\"") {
+        Task {
+          if let folder = try? await storeManager.directFolderForObject(
+            objectId, inSubtreeOf: rootFolderId
+          ) {
+            try? await storeManager.removeItemFromFolder(
+              objectId: objectId, folderId: folder.id
+            )
+            loadFolderObjects(for: sidebarSelection)
+          }
+        }
+      }
+    } else {
+      let folderName =
+        storeManager.folders.first { $0.id == rootFolderId }?.name ?? "Folder"
+      Button("Remove from \"\(folderName)\"") {
+        Task {
+          for objectId in objectIds {
+            if let folder = try? await storeManager.directFolderForObject(
+              objectId, inSubtreeOf: rootFolderId
+            ) {
+              try? await storeManager.removeItemFromFolder(
+                objectId: objectId, folderId: folder.id
+              )
+            }
+          }
+          loadFolderObjects(for: sidebarSelection)
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func addToFolderMenu(objectIds: Set<Int64>) -> some View {
+    let roots = storeManager.folders.filter { $0.parentId == nil }.sorted {
+      $0.position < $1.position
+    }
+    Menu("Add to Folder") {
+      ForEach(roots) { folder in
+        folderMenuItem(folder, objectIds: objectIds)
+      }
+    }
+  }
+
+  private func folderMenuItem(_ folder: Folder, objectIds: Set<Int64>) -> AnyView {
+    let children = storeManager.folders.filter { $0.parentId == folder.id }.sorted {
+      $0.position < $1.position
+    }
+    if children.isEmpty {
+      return AnyView(
+        Button(folder.name) {
+          Task {
+            for id in objectIds {
+              try? await storeManager.addItemToFolder(objectId: id, folderId: folder.id)
+            }
+          }
+        }
+      )
+    } else {
+      return AnyView(
+        Menu(folder.name) {
+          Button("This Folder") {
+            Task {
+              for id in objectIds {
+                try? await storeManager.addItemToFolder(objectId: id, folderId: folder.id)
+              }
+            }
+          }
+          Divider()
+          ForEach(children) { child in
+            folderMenuItem(child, objectIds: objectIds)
+          }
+        }
+      )
+    }
+  }
+
+  private func deleteFolderWithUndo(_ folderId: Int64) {
+    Task {
+      try? await storeManager.softDeleteFolder(folderId)
+    }
+    sidebarSelection = .allItems
+    guard let undoManager else { return }
+    Self.registerFolderDeleteUndo(
+      folderId: folderId,
+      storeManager: storeManager,
+      undoManager: undoManager
+    )
+  }
+
+  private static func registerFolderDeleteUndo(
+    folderId: Int64,
+    storeManager: StoreManager,
+    undoManager: UndoManager
+  ) {
+    undoManager.registerUndo(withTarget: storeManager) { [weak undoManager] manager in
+      Task { @MainActor in
+        try? await manager.restoreFolder(folderId)
+        if let undoManager {
+          registerFolderDeleteRedo(
+            folderId: folderId, storeManager: manager, undoManager: undoManager
+          )
+        }
+      }
+    }
+    undoManager.setActionName("Delete Folder")
+  }
+
+  private static func registerFolderDeleteRedo(
+    folderId: Int64,
+    storeManager: StoreManager,
+    undoManager: UndoManager
+  ) {
+    undoManager.registerUndo(withTarget: storeManager) { [weak undoManager] manager in
+      Task { @MainActor in
+        try? await manager.softDeleteFolder(folderId)
+        if let undoManager {
+          registerFolderDeleteUndo(
+            folderId: folderId, storeManager: manager, undoManager: undoManager
+          )
+        }
+      }
+    }
+    undoManager.setActionName("Delete Folder")
   }
 
   private func deleteWithUndo(_ ids: Set<Int64>) {
@@ -593,5 +865,29 @@ struct ColumnSettingsView: View {
         customization[visibility: id] = newValue ? .automatic : .hidden
       }
     )
+  }
+}
+
+struct IngestionProgressView: View {
+  var progress: IngestionProgress
+
+  var body: some View {
+    VStack(spacing: 16) {
+      Text("Importing Files")
+        .font(.headline)
+      ProgressView(value: progress.fractionCompleted)
+        .frame(width: 280)
+      Text("\(progress.processedFiles) of \(progress.totalFiles) files")
+        .foregroundStyle(.secondary)
+      if !progress.currentFileName.isEmpty {
+        Text(progress.currentFileName)
+          .font(.caption)
+          .foregroundStyle(.tertiary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .frame(width: 280)
+      }
+    }
+    .padding(32)
   }
 }

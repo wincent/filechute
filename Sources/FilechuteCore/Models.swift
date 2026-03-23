@@ -136,6 +136,31 @@ public struct ObjectInfo: Codable, Sendable {
   }()
 }
 
+public struct Folder: Identifiable, Sendable, Hashable {
+  public let id: Int64
+  public let name: String
+  public let parentId: Int64?
+  public let position: Double
+  public let createdAt: Date
+  public let deletedAt: Date?
+
+  public init(
+    id: Int64,
+    name: String,
+    parentId: Int64? = nil,
+    position: Double = 0,
+    createdAt: Date = Date(),
+    deletedAt: Date? = nil
+  ) {
+    self.id = id
+    self.name = name
+    self.parentId = parentId
+    self.position = position
+    self.createdAt = createdAt
+    self.deletedAt = deletedAt
+  }
+}
+
 public struct ObjectMetadata: Sendable, Hashable {
   public let objectId: Int64
   public let key: String

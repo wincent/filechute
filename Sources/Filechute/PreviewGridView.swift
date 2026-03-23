@@ -12,6 +12,9 @@ struct PreviewGridView: View {
   var onQuickLook: (StoredObject) -> Void
   var onRevealInFinder: (StoredObject) -> Void
   var onDelete: (Set<Int64>) -> Void
+  var currentFolderId: Int64? = nil
+  var onRemoveFromFolder: ((Int64, Int64) -> Void)? = nil
+  var dragProvider: (([Int64]) -> NSItemProvider)? = nil
   @State private var anchorId: Int64?
   @State private var editingObjectId: Int64?
   @State private var editingName = ""
@@ -42,6 +45,10 @@ struct PreviewGridView: View {
                 onCancelRename: { cancelRename() }
               )
               .id(object.id)
+              .onDrag {
+                let ids = Array(selection.contains(object.id) ? selection : [object.id])
+                return dragProvider?(ids) ?? NSItemProvider()
+              }
               .gesture(
                 TapGesture(count: 2).onEnded {
                   onOpen(object)
@@ -58,6 +65,18 @@ struct PreviewGridView: View {
                 Button("Quick Look") { onQuickLook(object) }
                 Button("Reveal in Finder") { onRevealInFinder(object) }
                 Button("Rename") { startRename(for: object) }
+                if let folderId = currentFolderId, let onRemoveFromFolder {
+                  Divider()
+                  let folderName =
+                    storeManager.folders.first { $0.id == folderId }?.name ?? "Folder"
+                  Button("Remove from \"\(folderName)\"") {
+                    onRemoveFromFolder(object.id, folderId)
+                  }
+                }
+                if !storeManager.folders.isEmpty {
+                  Divider()
+                  addToFolderMenu(objectId: object.id)
+                }
                 Divider()
                 Button("Move to Trash", role: .destructive) {
                   onDelete([object.id])
@@ -135,6 +154,45 @@ struct PreviewGridView: View {
     } else {
       selection = [object.id]
       anchorId = object.id
+    }
+  }
+
+  @ViewBuilder
+  private func addToFolderMenu(objectId: Int64) -> some View {
+    let roots = storeManager.folders.filter { $0.parentId == nil }.sorted {
+      $0.position < $1.position
+    }
+    Menu("Add to Folder") {
+      ForEach(roots) { folder in
+        folderMenuItem(folder, objectId: objectId)
+      }
+    }
+  }
+
+  private func folderMenuItem(_ folder: Folder, objectId: Int64) -> AnyView {
+    let children = storeManager.folders.filter { $0.parentId == folder.id }.sorted {
+      $0.position < $1.position
+    }
+    if children.isEmpty {
+      return AnyView(
+        Button(folder.name) {
+          Task { try? await storeManager.addItemToFolder(objectId: objectId, folderId: folder.id) }
+        }
+      )
+    } else {
+      return AnyView(
+        Menu(folder.name) {
+          Button("This Folder") {
+            Task {
+              try? await storeManager.addItemToFolder(objectId: objectId, folderId: folder.id)
+            }
+          }
+          Divider()
+          ForEach(children) { child in
+            folderMenuItem(child, objectId: objectId)
+          }
+        }
+      )
     }
   }
 

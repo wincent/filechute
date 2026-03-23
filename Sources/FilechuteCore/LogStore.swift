@@ -13,6 +13,7 @@ public enum LogCategory: String, Sendable, CaseIterable {
   case fileAccess
   case garbageCollector
   case integrity
+  case folders
   case ui
   case general
 }

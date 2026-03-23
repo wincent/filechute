@@ -2,6 +2,31 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+extension UTType {
+  static let filechuteObjectIDs = UTType(
+    exportedAs: "dev.wincent.filechute.object-ids"
+  )
+  static let filechuteFolderID = UTType(
+    exportedAs: "dev.wincent.filechute.folder-id"
+  )
+}
+
+struct DraggedObjectIDs: Codable, Transferable {
+  let ids: [Int64]
+
+  static var transferRepresentation: some TransferRepresentation {
+    CodableRepresentation(contentType: .filechuteObjectIDs)
+  }
+}
+
+struct DraggedFolderID: Codable, Transferable {
+  let id: Int64
+
+  static var transferRepresentation: some TransferRepresentation {
+    CodableRepresentation(contentType: .filechuteFolderID)
+  }
+}
+
 @main
 struct FilechuteApp: App {
   @NSApplicationDelegateAdaptor(FilechuteAppDelegate.self) var appDelegate

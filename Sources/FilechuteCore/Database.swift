@@ -97,6 +97,26 @@ public actor Database {
     ) WHERE file_extension = ''
     """,
     "ALTER TABLE objects ADD COLUMN notes TEXT",
+    """
+    CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        parent_id INTEGER REFERENCES folders(id),
+        position REAL NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        deleted_at INTEGER
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS folder_items (
+        folder_id INTEGER NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+        object_id INTEGER NOT NULL REFERENCES objects(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (folder_id, object_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_folder_items_object ON folder_items(object_id)",
+    "CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)",
   ]
 
   private static func initSchema(db: OpaquePointer) throws {
@@ -588,6 +608,297 @@ public actor Database {
       return nil
     }
     return try getObject(byId: currentId)
+  }
+
+  // MARK: - Folders
+
+  public func createFolder(name: String, parentId: Int64? = nil, position: Double = 0) throws
+    -> Folder
+  {
+    let now = Int64(Date().timeIntervalSince1970)
+    let id = try insert(
+      "INSERT INTO folders (name, parent_id, position, created_at) VALUES (?, ?, ?, ?)",
+      bind: { stmt in
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT)
+        if let parentId {
+          sqlite3_bind_int64(stmt, 2, parentId)
+        } else {
+          sqlite3_bind_null(stmt, 2)
+        }
+        sqlite3_bind_double(stmt, 3, position)
+        sqlite3_bind_int64(stmt, 4, now)
+      }
+    )
+    Log.debug(
+      "Created folder '\(name)' (id=\(id), parent=\(parentId.map(String.init) ?? "root"), position=\(position))",
+      category: .folders
+    )
+    return Folder(
+      id: id,
+      name: name,
+      parentId: parentId,
+      position: position,
+      createdAt: Date(timeIntervalSince1970: TimeInterval(now))
+    )
+  }
+
+  public func renameFolder(id: Int64, name: String) throws {
+    let oldName =
+      try query(
+        "SELECT name FROM folders WHERE id = ?",
+        bind: { stmt in sqlite3_bind_int64(stmt, 1, id) },
+        read: { stmt in self.columnText(stmt, 0)! }
+      ).first ?? ""
+    try update(
+      "UPDATE folders SET name = ? WHERE id = ?",
+      bind: { stmt in
+        sqlite3_bind_text(stmt, 1, name, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int64(stmt, 2, id)
+      }
+    )
+    Log.debug("Renamed folder \(id): '\(oldName)' -> '\(name)'", category: .folders)
+  }
+
+  public func moveFolder(id: Int64, parentId: Int64?, position: Double) throws {
+    try update(
+      "UPDATE folders SET parent_id = ?, position = ? WHERE id = ?",
+      bind: { stmt in
+        if let parentId {
+          sqlite3_bind_int64(stmt, 1, parentId)
+        } else {
+          sqlite3_bind_null(stmt, 1)
+        }
+        sqlite3_bind_double(stmt, 2, position)
+        sqlite3_bind_int64(stmt, 3, id)
+      }
+    )
+    Log.debug(
+      "Moved folder \(id) to parent=\(parentId.map(String.init) ?? "root"), position=\(position)",
+      category: .folders
+    )
+  }
+
+  public func softDeleteFolder(id: Int64) throws {
+    let now = Int64(Date().timeIntervalSince1970)
+    let descendantIds = try allDescendantFolderIds(of: id)
+    let allIds = [id] + descendantIds
+    let placeholders = allIds.map { _ in "?" }.joined(separator: ", ")
+    try update(
+      "UPDATE folders SET deleted_at = ? WHERE id IN (\(placeholders)) AND deleted_at IS NULL",
+      bind: { stmt in
+        sqlite3_bind_int64(stmt, 1, now)
+        for (i, folderId) in allIds.enumerated() {
+          sqlite3_bind_int64(stmt, Int32(i + 2), folderId)
+        }
+      }
+    )
+    Log.debug(
+      "Soft-deleted folder \(id) (subtree size: \(allIds.count))",
+      category: .folders
+    )
+  }
+
+  public func restoreFolder(id: Int64) throws {
+    let descendantIds = try allDescendantFolderIds(of: id, includeDeleted: true)
+    let allIds = [id] + descendantIds
+    let placeholders = allIds.map { _ in "?" }.joined(separator: ", ")
+    try update(
+      "UPDATE folders SET deleted_at = NULL WHERE id IN (\(placeholders))",
+      bind: { stmt in
+        for (i, folderId) in allIds.enumerated() {
+          sqlite3_bind_int64(stmt, Int32(i + 1), folderId)
+        }
+      }
+    )
+    Log.debug(
+      "Restored folder \(id) (subtree size: \(allIds.count))",
+      category: .folders
+    )
+  }
+
+  public func allFolders() throws -> [Folder] {
+    try query(
+      "SELECT id, name, parent_id, position, created_at, deleted_at FROM folders WHERE deleted_at IS NULL ORDER BY position",
+      read: readFolder
+    )
+  }
+
+  public func getFolder(byId id: Int64) throws -> Folder? {
+    try query(
+      "SELECT id, name, parent_id, position, created_at, deleted_at FROM folders WHERE id = ?",
+      bind: { stmt in sqlite3_bind_int64(stmt, 1, id) },
+      read: readFolder
+    ).first
+  }
+
+  public func addItemToFolder(objectId: Int64, folderId: Int64) throws {
+    try insert(
+      "INSERT OR IGNORE INTO folder_items (folder_id, object_id, created_at) VALUES (?, ?, ?)",
+      bind: { stmt in
+        sqlite3_bind_int64(stmt, 1, folderId)
+        sqlite3_bind_int64(stmt, 2, objectId)
+        sqlite3_bind_int64(stmt, 3, Int64(Date().timeIntervalSince1970))
+      }
+    )
+    Log.debug("Added object \(objectId) to folder \(folderId)", category: .folders)
+  }
+
+  public func removeItemFromFolder(objectId: Int64, folderId: Int64) throws {
+    try update(
+      "DELETE FROM folder_items WHERE folder_id = ? AND object_id = ?",
+      bind: { stmt in
+        sqlite3_bind_int64(stmt, 1, folderId)
+        sqlite3_bind_int64(stmt, 2, objectId)
+      }
+    )
+    Log.debug("Removed object \(objectId) from folder \(folderId)", category: .folders)
+  }
+
+  public func items(inFolder folderId: Int64, recursive: Bool = false) throws -> [StoredObject] {
+    if recursive {
+      let descendantIds = try allDescendantFolderIds(of: folderId)
+      let allFolderIds = [folderId] + descendantIds
+      let placeholders = allFolderIds.map { _ in "?" }.joined(separator: ", ")
+      return try query(
+        """
+        SELECT DISTINCT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
+        FROM objects o
+        JOIN folder_items fi ON fi.object_id = o.id
+        WHERE fi.folder_id IN (\(placeholders)) AND o.deleted_at IS NULL
+        ORDER BY o.name
+        """,
+        bind: { stmt in
+          for (i, id) in allFolderIds.enumerated() {
+            sqlite3_bind_int64(stmt, Int32(i + 1), id)
+          }
+        },
+        read: readObject
+      )
+    }
+    return try query(
+      """
+      SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
+      FROM objects o
+      JOIN folder_items fi ON fi.object_id = o.id
+      WHERE fi.folder_id = ? AND o.deleted_at IS NULL
+      ORDER BY o.name
+      """,
+      bind: { stmt in sqlite3_bind_int64(stmt, 1, folderId) },
+      read: readObject
+    )
+  }
+
+  public func folders(containingObject objectId: Int64) throws -> [Folder] {
+    try query(
+      """
+      SELECT f.id, f.name, f.parent_id, f.position, f.created_at, f.deleted_at
+      FROM folders f
+      JOIN folder_items fi ON fi.folder_id = f.id
+      WHERE fi.object_id = ? AND f.deleted_at IS NULL
+      ORDER BY f.name
+      """,
+      bind: { stmt in sqlite3_bind_int64(stmt, 1, objectId) },
+      read: readFolder
+    )
+  }
+
+  public func directFolderIdForObject(_ objectId: Int64, inSubtreeOf rootFolderId: Int64) throws
+    -> Int64?
+  {
+    let descendantIds = try allDescendantFolderIds(of: rootFolderId)
+    let allFolderIds = [rootFolderId] + descendantIds
+    let placeholders = allFolderIds.map { _ in "?" }.joined(separator: ", ")
+    return try query(
+      "SELECT folder_id FROM folder_items WHERE object_id = ? AND folder_id IN (\(placeholders)) LIMIT 1",
+      bind: { stmt in
+        sqlite3_bind_int64(stmt, 1, objectId)
+        for (i, id) in allFolderIds.enumerated() {
+          sqlite3_bind_int64(stmt, Int32(i + 2), id)
+        }
+      },
+      read: { stmt in sqlite3_column_int64(stmt, 0) }
+    ).first
+  }
+
+  public func maxFolderPosition(parentId: Int64?) throws -> Double {
+    let result: [Double]
+    if let parentId {
+      result = try query(
+        "SELECT MAX(position) FROM folders WHERE parent_id = ? AND deleted_at IS NULL",
+        bind: { stmt in sqlite3_bind_int64(stmt, 1, parentId) },
+        read: { stmt in
+          sqlite3_column_type(stmt, 0) == SQLITE_NULL ? 0 : sqlite3_column_double(stmt, 0)
+        }
+      )
+    } else {
+      result = try query(
+        "SELECT MAX(position) FROM folders WHERE parent_id IS NULL AND deleted_at IS NULL",
+        read: { stmt in
+          sqlite3_column_type(stmt, 0) == SQLITE_NULL ? 0 : sqlite3_column_double(stmt, 0)
+        }
+      )
+    }
+    return result.first ?? 0
+  }
+
+  public func renumberFolderPositions(parentId: Int64?) throws {
+    let folders: [Folder]
+    if let parentId {
+      folders = try query(
+        "SELECT id, name, parent_id, position, created_at, deleted_at FROM folders WHERE parent_id = ? AND deleted_at IS NULL ORDER BY position",
+        bind: { stmt in sqlite3_bind_int64(stmt, 1, parentId) },
+        read: readFolder
+      )
+    } else {
+      folders = try query(
+        "SELECT id, name, parent_id, position, created_at, deleted_at FROM folders WHERE parent_id IS NULL AND deleted_at IS NULL ORDER BY position",
+        read: readFolder
+      )
+    }
+    for (i, folder) in folders.enumerated() {
+      let newPosition = Double(i + 1)
+      try update(
+        "UPDATE folders SET position = ? WHERE id = ?",
+        bind: { stmt in
+          sqlite3_bind_double(stmt, 1, newPosition)
+          sqlite3_bind_int64(stmt, 2, folder.id)
+        }
+      )
+    }
+    Log.debug(
+      "Renumbered \(folders.count) folder positions under parent=\(parentId.map(String.init) ?? "root")",
+      category: .folders
+    )
+  }
+
+  private func allDescendantFolderIds(of folderId: Int64, includeDeleted: Bool = false) throws
+    -> [Int64]
+  {
+    var result: [Int64] = []
+    var queue: [Int64] = [folderId]
+    while !queue.isEmpty {
+      let current = queue.removeFirst()
+      let deletedClause = includeDeleted ? "" : " AND deleted_at IS NULL"
+      let children: [Int64] = try query(
+        "SELECT id FROM folders WHERE parent_id = ?\(deletedClause)",
+        bind: { stmt in sqlite3_bind_int64(stmt, 1, current) },
+        read: { stmt in sqlite3_column_int64(stmt, 0) }
+      )
+      result.append(contentsOf: children)
+      queue.append(contentsOf: children)
+    }
+    return result
+  }
+
+  private func readFolder(_ stmt: OpaquePointer) -> Folder {
+    Folder(
+      id: columnInt64(stmt, 0),
+      name: columnText(stmt, 1)!,
+      parentId: sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : columnInt64(stmt, 2),
+      position: sqlite3_column_double(stmt, 3),
+      createdAt: columnDate(stmt, 4),
+      deletedAt: columnOptionalDate(stmt, 5)
+    )
   }
 
   // MARK: - Internal helpers

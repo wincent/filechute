@@ -45,6 +45,26 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>dev.wincent.filechute.object-ids</string>
+			<key>UTTypeDescription</key>
+			<string>Filechute Object IDs</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>dev.wincent.filechute.folder-id</string>
+			<key>UTTypeDescription</key>
+			<string>Filechute Folder ID</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>

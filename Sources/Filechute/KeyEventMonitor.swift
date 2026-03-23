@@ -8,6 +8,8 @@ final class KeyEventMonitor {
   var perform: (InteractionEffect) -> Void = { _ in }
   var onBulkTagEdit: () -> Void = {}
   var isBulkTagEditorVisible: () -> Bool = { false }
+  var onDeleteFolder: () -> Void = {}
+  var isFolderSelected: () -> Bool = { false }
 
   func install() {
     guard monitor == nil else { return }
@@ -41,6 +43,17 @@ final class KeyEventMonitor {
           SearchField.focus()
         }
         return nil
+      }
+
+      if event.keyCode == 51 && event.modifierFlags.contains(.command) {
+        let handled = MainActor.assumeIsolated {
+          if self.isFolderSelected() {
+            self.onDeleteFolder()
+            return true
+          }
+          return false
+        }
+        if handled { return nil }
       }
 
       let keyCode = event.keyCode

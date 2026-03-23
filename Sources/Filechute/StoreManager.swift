@@ -4,12 +4,28 @@ import Foundation
 
 @Observable
 @MainActor
+final class IngestionProgress {
+  var isActive = false
+  var totalFiles = 0
+  var processedFiles = 0
+  var currentFileName = ""
+
+  var fractionCompleted: Double {
+    guard totalFiles > 0 else { return 0 }
+    return Double(processedFiles) / Double(totalFiles)
+  }
+}
+
+@Observable
+@MainActor
 final class StoreManager {
   private(set) var objects: [StoredObject] = []
   private(set) var allTags: [TagCount] = []
   private(set) var deletedObjects: [StoredObject] = []
   private(set) var tagNamesByObject: [Int64: [String]] = [:]
   private(set) var sizesByObject: [Int64: UInt64] = [:]
+  private(set) var folders: [Folder] = []
+  nonisolated let ingestionProgress: IngestionProgress
 
   nonisolated let storeRoot: URL
   nonisolated let objectStore: ObjectStore
@@ -37,6 +53,7 @@ final class StoreManager {
     )
     self.garbageCollector = GarbageCollector(objectStore: store, database: db)
     self.thumbnailService = ThumbnailService(objectStore: store)
+    self.ingestionProgress = MainActor.assumeIsolated { IngestionProgress() }
     Log.info("Initialized store at \(storeRoot.path)", category: .general)
   }
 
@@ -47,6 +64,7 @@ final class StoreManager {
       .filter { $0.deletedAt != nil }
     tagNamesByObject = try await database.allTagNamesByObject()
     sizesByObject = try await database.allSizes()
+    folders = try await database.allFolders()
     for i in objects.indices {
       objects[i].sizeBytes = sizesByObject[objects[i].id] ?? 0
     }
@@ -54,7 +72,7 @@ final class StoreManager {
       deletedObjects[i].sizeBytes = sizesByObject[deletedObjects[i].id] ?? 0
     }
     Log.debug(
-      "Refreshed: \(objects.count) objects, \(allTags.count) tags, \(deletedObjects.count) deleted",
+      "Refreshed: \(objects.count) objects, \(allTags.count) tags, \(deletedObjects.count) deleted, \(folders.count) folders",
       category: .ui
     )
   }
@@ -180,6 +198,167 @@ final class StoreManager {
       try await database.permanentlyDeleteObject(id: obj.id)
     }
     try await refresh()
+  }
+
+  // MARK: - Folders
+
+  func createFolder(name: String, parentId: Int64? = nil) async throws -> Folder {
+    let maxPos = try await database.maxFolderPosition(parentId: parentId)
+    let folder = try await database.createFolder(
+      name: name, parentId: parentId, position: maxPos + 1.0
+    )
+    try await refresh()
+    return folder
+  }
+
+  func renameFolder(_ folderId: Int64, to name: String) async throws {
+    try await database.renameFolder(id: folderId, name: name)
+    try await refresh()
+  }
+
+  func moveFolder(_ folderId: Int64, parentId: Int64?, position: Double) async throws {
+    try await database.moveFolder(id: folderId, parentId: parentId, position: position)
+    try await checkAndRenumber(parentId: parentId)
+    try await refresh()
+  }
+
+  func softDeleteFolder(_ folderId: Int64) async throws {
+    try await database.softDeleteFolder(id: folderId)
+    try await refresh()
+  }
+
+  func restoreFolder(_ folderId: Int64) async throws {
+    try await database.restoreFolder(id: folderId)
+    try await refresh()
+  }
+
+  func addItemToFolder(objectId: Int64, folderId: Int64) async throws {
+    try await database.addItemToFolder(objectId: objectId, folderId: folderId)
+    try await refresh()
+  }
+
+  func removeItemFromFolder(objectId: Int64, folderId: Int64) async throws {
+    try await database.removeItemFromFolder(objectId: objectId, folderId: folderId)
+    try await refresh()
+  }
+
+  func itemsInFolder(_ folderId: Int64, recursive: Bool = true) async throws -> [StoredObject] {
+    var items = try await database.items(inFolder: folderId, recursive: recursive)
+    for i in items.indices {
+      items[i].sizeBytes = sizesByObject[items[i].id] ?? 0
+    }
+    return items
+  }
+
+  func foldersContaining(objectId: Int64) async throws -> [Folder] {
+    try await database.folders(containingObject: objectId)
+  }
+
+  func directFolderForObject(_ objectId: Int64, inSubtreeOf rootFolderId: Int64) async throws
+    -> Folder?
+  {
+    guard
+      let folderId = try await database.directFolderIdForObject(
+        objectId, inSubtreeOf: rootFolderId
+      )
+    else { return nil }
+    return try await database.getFolder(byId: folderId)
+  }
+
+  func ingestDirectory(at url: URL, intoFolder parentFolderId: Int64? = nil) async throws {
+    var countPaths: Set<String> = []
+    ingestionProgress.totalFiles = countFiles(at: url, visitedPaths: &countPaths)
+    ingestionProgress.processedFiles = 0
+    ingestionProgress.currentFileName = ""
+    ingestionProgress.isActive = true
+    defer { ingestionProgress.isActive = false }
+
+    var visitedPaths: Set<String> = []
+    try await ingestDirectoryRecursive(
+      at: url, parentFolderId: parentFolderId, visitedPaths: &visitedPaths
+    )
+    try await refresh()
+  }
+
+  private func countFiles(at url: URL, visitedPaths: inout Set<String>) -> Int {
+    let realPath = url.resolvingSymlinksInPath().path
+    guard !visitedPaths.contains(realPath) else { return 0 }
+    visitedPaths.insert(realPath)
+    let fm = FileManager.default
+    guard
+      let contents = try? fm.contentsOfDirectory(
+        at: url, includingPropertiesForKeys: [.isDirectoryKey]
+      )
+    else { return 0 }
+    var count = 0
+    for item in contents {
+      let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+      if isDir {
+        count += countFiles(at: item, visitedPaths: &visitedPaths)
+      } else {
+        count += 1
+      }
+    }
+    return count
+  }
+
+  private func ingestDirectoryRecursive(
+    at url: URL, parentFolderId: Int64?, visitedPaths: inout Set<String>
+  ) async throws {
+    let realPath = url.resolvingSymlinksInPath().path
+    guard !visitedPaths.contains(realPath) else {
+      Log.debug("Skipping symlink cycle: \(url.path) -> \(realPath)", category: .folders)
+      return
+    }
+    visitedPaths.insert(realPath)
+
+    let folder = try await createFolder(name: url.lastPathComponent, parentId: parentFolderId)
+
+    let fm = FileManager.default
+    let contents = try fm.contentsOfDirectory(
+      at: url, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+    )
+
+    var fileCount = 0
+    var dirCount = 0
+    for item in contents {
+      let resourceValues = try item.resourceValues(forKeys: [.isDirectoryKey])
+      if resourceValues.isDirectory == true {
+        dirCount += 1
+        try await ingestDirectoryRecursive(
+          at: item, parentFolderId: folder.id, visitedPaths: &visitedPaths
+        )
+      } else {
+        ingestionProgress.currentFileName = item.lastPathComponent
+        let object = try await ingestionService.ingest(fileAt: item)
+        try await database.addItemToFolder(objectId: object.id, folderId: folder.id)
+        ingestionProgress.processedFiles += 1
+        fileCount += 1
+      }
+    }
+    Log.debug(
+      "Imported directory '\(url.lastPathComponent)': \(fileCount) files, \(dirCount) subdirectories",
+      category: .folders
+    )
+  }
+
+  private func checkAndRenumber(parentId: Int64?) async throws {
+    let siblings: [Folder]
+    if let parentId {
+      siblings = folders.filter { $0.parentId == parentId }
+    } else {
+      siblings = folders.filter { $0.parentId == nil }
+    }
+
+    guard siblings.count >= 2 else { return }
+    let sorted = siblings.sorted { $0.position < $1.position }
+    for i in 0..<(sorted.count - 1) {
+      let gap = sorted[i + 1].position - sorted[i].position
+      if gap < 1e-6 {
+        try await database.renumberFolderPositions(parentId: parentId)
+        return
+      }
+    }
   }
 
   func backfillThumbnails() async {
