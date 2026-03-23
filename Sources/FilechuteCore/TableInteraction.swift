@@ -7,6 +7,7 @@ public enum KeyInput: Sendable, Hashable {
   case rightArrow
   case space
   case commandDown
+  case commandBackspace
 }
 
 public struct InteractionContext: Sendable, Hashable {
@@ -16,6 +17,7 @@ public struct InteractionContext: Sendable, Hashable {
   public var isQuickLookVisible: Bool
   public var isGridMode: Bool
   public var gridColumnCount: Int
+  public var isInTrash: Bool
 
   public init(
     isEditing: Bool = false,
@@ -23,7 +25,8 @@ public struct InteractionContext: Sendable, Hashable {
     hasSelection: Bool = false,
     isQuickLookVisible: Bool = false,
     isGridMode: Bool = false,
-    gridColumnCount: Int = 1
+    gridColumnCount: Int = 1,
+    isInTrash: Bool = false
   ) {
     self.isEditing = isEditing
     self.isTextFieldFocused = isTextFieldFocused
@@ -31,6 +34,7 @@ public struct InteractionContext: Sendable, Hashable {
     self.isQuickLookVisible = isQuickLookVisible
     self.isGridMode = isGridMode
     self.gridColumnCount = gridColumnCount
+    self.isInTrash = isInTrash
   }
 }
 
@@ -40,6 +44,7 @@ public enum InteractionEffect: Sendable, Hashable {
   case toggleQuickLook
   case navigateQuickLook(direction: Int)
   case openSelected
+  case moveToTrash
   case passthrough
 }
 
@@ -89,6 +94,11 @@ public enum TableInteraction {
 
     case .commandDown:
       if context.hasSelection { return .openSelected }
+      return .passthrough
+
+    case .commandBackspace:
+      if context.isInTrash { return .passthrough }
+      if context.hasSelection { return .moveToTrash }
       return .passthrough
     }
   }

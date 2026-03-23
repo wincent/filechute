@@ -114,3 +114,24 @@ struct CommandDownTests {
     #expect(TableInteraction.reduce(key: .commandDown, context: ctx) == .passthrough)
   }
 }
+
+@Suite("TableInteraction - Command+Backspace")
+struct CommandBackspaceTests {
+  @Test("Command+Backspace moves to trash when items selected")
+  func commandBackspaceMoveToTrash() {
+    let ctx = InteractionContext(hasSelection: true)
+    #expect(TableInteraction.reduce(key: .commandBackspace, context: ctx) == .moveToTrash)
+  }
+
+  @Test("Command+Backspace passes through when nothing selected")
+  func commandBackspacePassesThroughNoSelection() {
+    let ctx = InteractionContext()
+    #expect(TableInteraction.reduce(key: .commandBackspace, context: ctx) == .passthrough)
+  }
+
+  @Test("Command+Backspace passes through in trash view")
+  func commandBackspacePassesThroughInTrash() {
+    let ctx = InteractionContext(hasSelection: true, isInTrash: true)
+    #expect(TableInteraction.reduce(key: .commandBackspace, context: ctx) == .passthrough)
+  }
+}

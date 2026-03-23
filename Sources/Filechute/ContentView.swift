@@ -243,7 +243,8 @@ struct ContentView: View {
         hasSelection: !selection.isEmpty,
         isQuickLookVisible: quickLookCoordinator.isVisible,
         isGridMode: viewMode == "preview",
-        gridColumnCount: gridColumnCount
+        gridColumnCount: gridColumnCount,
+        isInTrash: sidebarSelection == .trash
       )
     }
     keyMonitor.perform = { [self] effect in
@@ -251,10 +252,6 @@ struct ContentView: View {
     }
     keyMonitor.onBulkTagEdit = { [self] in
       showBulkTagEditor.toggle()
-    }
-    keyMonitor.onMoveToTrash = { [self] in
-      guard sidebarSelection == .allItems, !selection.isEmpty else { return }
-      deleteWithUndo(selection)
     }
     keyMonitor.isBulkTagEditorVisible = { [self] in
       showBulkTagEditor
@@ -273,6 +270,8 @@ struct ContentView: View {
       navigateQuickLook(direction: direction)
     case .openSelected:
       openSelected()
+    case .moveToTrash:
+      deleteWithUndo(selection)
     case .passthrough:
       break
     }
