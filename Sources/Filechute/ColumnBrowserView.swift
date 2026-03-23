@@ -10,42 +10,53 @@ struct ColumnBrowserView: View {
 
   var body: some View {
     ScrollView(.horizontal, showsIndicators: true) {
-      HStack(alignment: .top, spacing: 0) {
-        BrowserColumnView(
-          title: "Tags",
-          items: storeManager.allTags,
-          selection: columns.isEmpty ? nil : columns[0].selectedTagIds,
-          columnIndex: 0,
-          focusedColumn: $focusedColumn,
-          columnCount: visibleColumnCount,
-          width: columnWidths[0] ?? 180,
-          onSelect: { tagIds in
-            selectTags(tagIds, atLevel: 0)
-          }
-        )
-        .accessibilityLabel("All tags")
+      ScrollViewReader { proxy in
+        HStack(alignment: .top, spacing: 0) {
+          BrowserColumnView(
+            title: "Tags",
+            items: storeManager.allTags,
+            selection: columns.isEmpty ? nil : columns[0].selectedTagIds,
+            columnIndex: 0,
+            focusedColumn: $focusedColumn,
+            columnCount: visibleColumnCount,
+            width: columnWidths[0] ?? 180,
+            onSelect: { tagIds in
+              selectTags(tagIds, atLevel: 0)
+            }
+          )
+          .id(0)
+          .accessibilityLabel("All tags")
 
-        ForEach(Array(columns.enumerated()), id: \.offset) { index, column in
-          if !column.reachableTags.isEmpty {
-            ColumnDivider(
-              width: columnWidthBinding(index),
-              minWidth: 100,
-              maxWidth: 400,
-              onResizeAll: setAllColumnWidths
-            )
-            BrowserColumnView(
-              title: "Refine",
-              items: column.reachableTags,
-              selection: nextSelection(after: index),
-              columnIndex: index + 1,
-              focusedColumn: $focusedColumn,
-              columnCount: visibleColumnCount,
-              width: columnWidths[index + 1] ?? 180,
-              onSelect: { tagIds in
-                selectTags(tagIds, atLevel: index + 1)
-              }
-            )
-            .accessibilityLabel("Refinement column \(index + 1)")
+          ForEach(Array(columns.enumerated()), id: \.offset) { index, column in
+            if !column.reachableTags.isEmpty {
+              ColumnDivider(
+                width: columnWidthBinding(index),
+                minWidth: 100,
+                maxWidth: 400,
+                onResizeAll: setAllColumnWidths
+              )
+              BrowserColumnView(
+                title: "Refine",
+                items: column.reachableTags,
+                selection: nextSelection(after: index),
+                columnIndex: index + 1,
+                focusedColumn: $focusedColumn,
+                columnCount: visibleColumnCount,
+                width: columnWidths[index + 1] ?? 180,
+                onSelect: { tagIds in
+                  selectTags(tagIds, atLevel: index + 1)
+                }
+              )
+              .id(index + 1)
+              .accessibilityLabel("Refinement column \(index + 1)")
+            }
+          }
+        }
+        .onChange(of: focusedColumn) { _, newValue in
+          if let column = newValue {
+            withAnimation {
+              proxy.scrollTo(column)
+            }
           }
         }
       }
