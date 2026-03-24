@@ -4,6 +4,7 @@ import SwiftUI
 struct TagAutocompleteField: View {
   @Binding var text: String
   let existingTags: [Tag]
+  var focusedField: FocusState<BulkTagEditFocus?>.Binding
   let onSubmit: (String) -> Void
 
   @State private var showSuggestions = false
@@ -24,6 +25,7 @@ struct TagAutocompleteField: View {
       HStack {
         TextField("Add tag", text: $text)
           .textFieldStyle(.roundedBorder)
+          .focused(focusedField, equals: .textField)
           .onSubmit {
             if selectedIndex >= 0, selectedIndex < visibleSuggestions.count {
               text = visibleSuggestions[visibleSuggestions.startIndex + selectedIndex].name
@@ -59,7 +61,9 @@ struct TagAutocompleteField: View {
         .accessibilityLabel("Add tag")
       }
 
-      if showSuggestions && !visibleSuggestions.isEmpty {
+      if showSuggestions && !visibleSuggestions.isEmpty
+        && focusedField.wrappedValue == .textField
+      {
         VStack(alignment: .leading, spacing: 0) {
           ForEach(Array(visibleSuggestions.enumerated()), id: \.element.id) { index, tag in
             Button {

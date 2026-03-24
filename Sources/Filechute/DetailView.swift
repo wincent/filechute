@@ -13,6 +13,7 @@ struct DetailView: View {
   @State private var renameHistory: [RenameEntry] = []
   @State private var showRenameHistory = false
   @State private var notesText = ""
+  @FocusState private var tagFieldFocus: BulkTagEditFocus?
 
   var body: some View {
     Form {
@@ -120,7 +121,8 @@ struct DetailView: View {
 
         TagAutocompleteField(
           text: $newTagName,
-          existingTags: allExistingTags
+          existingTags: allExistingTags,
+          focusedField: $tagFieldFocus
         ) { name in
           Task {
             try? await storeManager.addTag(name, to: object.id)

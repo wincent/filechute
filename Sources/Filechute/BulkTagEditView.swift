@@ -1,12 +1,19 @@
 import FilechuteCore
 import SwiftUI
 
+enum BulkTagEditFocus: Hashable {
+  case textField
+  case tagList
+}
+
 struct BulkTagEditView: View {
   let selectedObjectIds: Set<Int64>
   var storeManager: StoreManager
   let onDismiss: () -> Void
 
   @State private var newTagName = ""
+  @FocusState private var focus: BulkTagEditFocus?
+  @State private var focusedTagIndex = 0
 
   private var tagEntries: [(tag: Tag, state: TagApplyState)] {
     guard !selectedObjectIds.isEmpty else { return [] }
@@ -45,6 +52,22 @@ struct BulkTagEditView: View {
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .shadow(radius: 20)
       .frame(width: 360)
+      .onKeyPress(.tab) {
+        if focus == .textField && !tagEntries.isEmpty {
+          focus = .tagList
+          focusedTagIndex = min(focusedTagIndex, max(tagEntries.count - 1, 0))
+          return .handled
+        } else if focus == .tagList {
+          focus = .textField
+          return .handled
+        }
+        return .ignored
+      }
+    }
+    .onAppear {
+      DispatchQueue.main.async {
+        focus = .textField
+      }
     }
   }
 
@@ -83,17 +106,45 @@ struct BulkTagEditView: View {
   }
 
   private var tagList: some View {
-    ScrollView {
-      LazyVStack(spacing: 0) {
-        ForEach(tagEntries, id: \.tag.id) { entry in
-          tagRow(tag: entry.tag, state: entry.state)
+    ScrollViewReader { proxy in
+      ScrollView {
+        LazyVStack(spacing: 0) {
+          ForEach(Array(tagEntries.enumerated()), id: \.element.tag.id) { index, entry in
+            tagRow(
+              tag: entry.tag,
+              state: entry.state,
+              isFocused: focus == .tagList && index == focusedTagIndex
+            )
+            .id(entry.tag.id)
+          }
         }
       }
+      .frame(maxHeight: 300)
+      .focusable()
+      .focused($focus, equals: .tagList)
+      .focusEffectDisabled()
+      .onKeyPress(keys: [.upArrow, .downArrow]) { keyPress in
+        let count = tagEntries.count
+        guard count > 0 else { return .ignored }
+        if keyPress.key == .downArrow {
+          focusedTagIndex = min(focusedTagIndex + 1, count - 1)
+        } else {
+          focusedTagIndex = max(focusedTagIndex - 1, 0)
+        }
+        proxy.scrollTo(tagEntries[focusedTagIndex].tag.id)
+        return .handled
+      }
+      .onKeyPress(.space) {
+        let count = tagEntries.count
+        guard focusedTagIndex >= 0, focusedTagIndex < count else { return .ignored }
+        let entry = tagEntries[focusedTagIndex]
+        Task { await toggleTag(entry.tag, from: entry.state) }
+        return .handled
+      }
     }
-    .frame(maxHeight: 300)
   }
 
-  private func tagRow(tag: Tag, state: TagApplyState) -> some View {
+  private func tagRow(tag: Tag, state: TagApplyState, isFocused: Bool) -> some View {
     Button {
       Task { await toggleTag(tag, from: state) }
     } label: {
@@ -106,6 +157,11 @@ struct BulkTagEditView: View {
       .contentShape(Rectangle())
       .padding(.horizontal)
       .padding(.vertical, 6)
+      .background(
+        isFocused
+          ? AnyShapeStyle(Color.accentColor.opacity(0.2))
+          : AnyShapeStyle(.clear)
+      )
     }
     .buttonStyle(.plain)
   }
@@ -137,7 +193,8 @@ struct BulkTagEditView: View {
   private var addTagField: some View {
     TagAutocompleteField(
       text: $newTagName,
-      existingTags: storeManager.allTags.map(\.tag)
+      existingTags: storeManager.allTags.map(\.tag),
+      focusedField: $focus
     ) { name in
       newTagName = ""
       Task {
