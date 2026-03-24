@@ -54,6 +54,7 @@ struct SidebarView: View {
   @State private var dropInsertionPoint: FolderInsertionPoint?
   @State private var hoverExpandTimer: Timer?
   @State private var folderRowHeight: CGFloat = 28
+  @State private var hoveredFolderId: Int64?
 
   private var expandedFolderIdSet: Set<Int64> {
     Set(
@@ -99,11 +100,13 @@ struct SidebarView: View {
           Button {
             createRootFolder()
           } label: {
-            Image(systemName: "plus")
-              .font(.caption)
+            Image(systemName: "plus.circle")
+              .foregroundStyle(.secondary)
+              .font(.system(size: 11))
           }
           .buttonStyle(.plain)
         }
+        .padding(.trailing, 14)
         .onDrop(of: [.filechuteFolderID], isTargeted: nil) { providers in
           handleFolderDropToRoot(providers)
         }
@@ -115,6 +118,10 @@ struct SidebarView: View {
     }
     .animation(nil, value: storeManager.folders.map(\.id))
     .animation(nil, value: expandedFolderIds)
+    .onChange(of: storeManager.folders) {
+      dropInsertionPoint = nil
+      dropTargetFolderId = nil
+    }
     .alert(
       "Rename Failed",
       isPresented: .init(
@@ -172,11 +179,15 @@ struct SidebarView: View {
   @ViewBuilder
   private func folderLabel(_ folder: Folder, previousFolderId: Int64? = nil) -> some View {
     if renamingFolderId == folder.id {
-      TextField("Folder Name", text: $folderRenameText)
-        .focused($isFolderRenameFocused)
-        .onSubmit { commitFolderRename(folder.id) }
-        .onExitCommand { cancelFolderRename() }
-        .tag(NavigationSection.folder(folder.id))
+      Label {
+        TextField("Folder Name", text: $folderRenameText)
+          .focused($isFolderRenameFocused)
+          .onSubmit { commitFolderRename(folder.id) }
+          .onExitCommand { cancelFolderRename() }
+      } icon: {
+        Image(systemName: "folder")
+      }
+      .tag(NavigationSection.folder(folder.id))
     } else {
       let afterPoint = FolderInsertionPoint(
         parentId: folder.parentId, afterFolderId: folder.id
@@ -187,105 +198,123 @@ struct SidebarView: View {
       let showAfterLine = dropInsertionPoint == afterPoint
       let isFirstSibling = previousFolderId == nil
       let showBeforeLine = isFirstSibling && dropInsertionPoint == beforePoint
-      Label(folder.name, systemImage: NavigationSection.folder(folder.id).icon)
-        .tag(NavigationSection.folder(folder.id))
-        .background {
-          GeometryReader { geo in
-            Color.clear.onAppear { folderRowHeight = geo.size.height }
-          }
+      HStack(spacing: 4) {
+        Label(folder.name, systemImage: NavigationSection.folder(folder.id).icon)
+        Spacer()
+        Button {
+          createNestedFolder(in: folder.id)
+        } label: {
+          Image(systemName: "plus.circle")
+            .foregroundStyle(.secondary)
         }
-        .draggable(DraggedFolderID(id: folder.id))
-        .overlay(alignment: .top) {
-          if showBeforeLine {
-            insertionLine
-          }
+        .buttonStyle(.plain)
+        .opacity(hoveredFolderId == folder.id ? 1 : 0)
+      }
+      .onHover { hovering in
+        hoveredFolderId = hovering ? folder.id : nil
+      }
+      .tag(NavigationSection.folder(folder.id))
+      .background {
+        GeometryReader { geo in
+          Color.clear.onAppear { folderRowHeight = geo.size.height }
         }
-        .overlay(alignment: .bottom) {
-          if showAfterLine {
-            insertionLine
-          }
+      }
+      .draggable(DraggedFolderID(id: folder.id))
+      .overlay(alignment: .top) {
+        if showBeforeLine {
+          insertionLine
         }
-        .onDrop(
-          of: [.fileURL, .filechuteObjectIDs, .filechuteFolderID],
-          delegate: FolderDropDelegate(
-            folder: folder,
-            previousFolderId: previousFolderId,
-            storeManager: storeManager,
-            dropTargetFolderId: $dropTargetFolderId,
-            dropInsertionPoint: $dropInsertionPoint,
-            hoverExpandTimer: $hoverExpandTimer,
-            expandedFolderIdSet: expandedFolderIdSet,
-            setFolderExpanded: setFolderExpanded,
-            isDescendant: isDescendant,
-            childFolders: childFolders,
-            rootFolders: rootFolders,
-            onItemsDrop: { ids, folderId in
-              Task {
-                for objectId in ids {
-                  try? await storeManager.addItemToFolder(
-                    objectId: objectId, folderId: folderId
+      }
+      .overlay(alignment: .bottom) {
+        if showAfterLine {
+          insertionLine
+        }
+      }
+      .onDrop(
+        of: [.fileURL, .filechuteObjectIDs, .filechuteFolderID],
+        delegate: FolderDropDelegate(
+          folder: folder,
+          previousFolderId: previousFolderId,
+          storeManager: storeManager,
+          dropTargetFolderId: $dropTargetFolderId,
+          dropInsertionPoint: $dropInsertionPoint,
+          hoverExpandTimer: $hoverExpandTimer,
+          expandedFolderIdSet: expandedFolderIdSet,
+          setFolderExpanded: setFolderExpanded,
+          isDescendant: isDescendant,
+          childFolders: childFolders,
+          rootFolders: rootFolders,
+          onItemsDrop: { ids, folderId in
+            Task {
+              for objectId in ids {
+                try? await storeManager.addItemToFolder(
+                  objectId: objectId, folderId: folderId
+                )
+              }
+            }
+          },
+          onFileDrop: { url, folderId in
+            Task { @MainActor in
+              do {
+                var isDir: ObjCBool = false
+                let exists = FileManager.default.fileExists(
+                  atPath: url.path, isDirectory: &isDir
+                )
+                if exists && isDir.boolValue {
+                  if url.pathExtension.lowercased() == "filechute" { return }
+                  try await storeManager.ingestDirectory(at: url, intoFolder: folderId)
+                } else {
+                  let object = try await storeManager.ingestionService.ingest(fileAt: url)
+                  try await storeManager.addItemToFolder(
+                    objectId: object.id, folderId: folderId
                   )
                 }
+              } catch {
+                Log.error(
+                  "Failed to handle folder drop: \(error.localizedDescription)",
+                  category: .folders
+                )
               }
-            },
-            onFileDrop: { url, folderId in
-              Task { @MainActor in
-                do {
-                  var isDir: ObjCBool = false
-                  let exists = FileManager.default.fileExists(
-                    atPath: url.path, isDirectory: &isDir
-                  )
-                  if exists && isDir.boolValue {
-                    if url.pathExtension.lowercased() == "filechute" { return }
-                    try await storeManager.ingestDirectory(at: url, intoFolder: folderId)
-                  } else {
-                    let object = try await storeManager.ingestionService.ingest(fileAt: url)
-                    try await storeManager.addItemToFolder(
-                      objectId: object.id, folderId: folderId
-                    )
-                  }
-                } catch {
-                  Log.error(
-                    "Failed to handle folder drop: \(error.localizedDescription)",
-                    category: .folders
-                  )
-                }
-              }
-            },
-            rowHeight: folderRowHeight
-          )
+            }
+          },
+          rowHeight: folderRowHeight
         )
-        .listItemTint(dropTargetFolderId == folder.id ? .accentColor : nil)
-        .contextMenu {
-          Button("New Folder") {
-            createNestedFolder(in: folder.id)
-          }
-          Button("Rename") {
-            startFolderRename(folder)
-          }
-          if !childFolders(of: folder.id).isEmpty {
-            Divider()
-            Button("Expand All") {
-              toggleRecursive(folder.id, expanded: true)
-            }
-            Button("Collapse All") {
-              toggleRecursive(folder.id, expanded: false)
-            }
-          }
+      )
+      .listItemTint(dropTargetFolderId == folder.id ? .accentColor : nil)
+      .contextMenu {
+        Button("New Folder") {
+          createNestedFolder(in: folder.id)
+        }
+        Button("Rename") {
+          startFolderRename(folder)
+        }
+        if !childFolders(of: folder.id).isEmpty {
           Divider()
-          Button("Delete Folder", role: .destructive) {
-            deleteFolderWithUndo(folder.id)
+          Button("Expand All") {
+            toggleRecursive(folder.id, expanded: true)
+          }
+          Button("Collapse All") {
+            toggleRecursive(folder.id, expanded: false)
           }
         }
+        Divider()
+        Button("Delete Folder", role: .destructive) {
+          deleteFolderWithUndo(folder.id)
+        }
+      }
     }
   }
 
   private var insertionLine: some View {
-    Rectangle()
-      .fill(Color.accentColor)
-      .frame(width: 10000, height: 2)
-      .padding(.horizontal, 6)
-      .allowsHitTesting(false)
+    HStack(spacing: 0) {
+      Circle()
+        .fill(Color.accentColor)
+        .frame(width: 7, height: 7)
+      Color.accentColor
+        .frame(height: 2)
+    }
+    .padding(.leading, 2)
+    .allowsHitTesting(false)
   }
 
   // MARK: - Drop to root
@@ -563,9 +592,9 @@ private struct FolderDropDelegate: DropDelegate {
     hoverExpandTimer?.invalidate()
     hoverExpandTimer = nil
 
-    Task { @MainActor in
-      dropInsertionPoint = nil
-      dropTargetFolderId = nil
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+      self.dropInsertionPoint = nil
+      self.dropTargetFolderId = nil
     }
 
     let allProviders = info.itemProviders(for: [
