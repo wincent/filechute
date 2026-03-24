@@ -23,9 +23,6 @@ struct StatusBarView: View {
       Spacer()
 
       if isGridMode {
-        Image(systemName: "square.grid.2x2")
-          .font(.caption2)
-          .foregroundStyle(.tertiary)
         Slider(value: $thumbnailSize, in: 64...1280)
           .frame(width: sliderWidth)
           .controlSize(.mini)
