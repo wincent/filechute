@@ -901,6 +901,45 @@ public actor Database {
     )
   }
 
+  // MARK: - Browser
+
+  public func tableNames() throws -> [String] {
+    try query(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ) { stmt in
+      columnText(stmt, 0)!
+    }
+  }
+
+  public func columnNames(table: String) throws -> [String] {
+    guard try tableNames().contains(table) else {
+      throw DatabaseError.executionFailed("Unknown table: \(table)")
+    }
+    return try query("PRAGMA table_info(\"\(table)\")") { stmt in
+      columnText(stmt, 1)!
+    }
+  }
+
+  public func rowCount(table: String) throws -> Int {
+    guard try tableNames().contains(table) else {
+      throw DatabaseError.executionFailed("Unknown table: \(table)")
+    }
+    let counts = try query("SELECT COUNT(*) FROM \"\(table)\"") { stmt in
+      columnInt64(stmt, 0)
+    }
+    return Int(counts.first ?? 0)
+  }
+
+  public func fetchRows(table: String, limit: Int, offset: Int) throws -> [[String?]] {
+    let cols = try columnNames(table: table)
+    let colCount = Int32(cols.count)
+    return try query("SELECT * FROM \"\(table)\" LIMIT \(limit) OFFSET \(offset)") { stmt in
+      (0..<colCount).map { i in
+        columnText(stmt, i)
+      }
+    }
+  }
+
   // MARK: - Internal helpers
 
   private func execute(_ sql: String) throws {

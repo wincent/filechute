@@ -9,6 +9,8 @@ final class StoreCoordinator {
   let storesDirectory: URL
   let defaultStoreURL: URL
   private(set) var recentStores: [URL] = []
+  private(set) var openStores: [URL: StoreManager] = [:]
+  private var storeRefCounts: [URL: Int] = [:]
 
   private let recentStoresKey = "recentStoreURLs"
   private let lastActiveStoreKey = "lastActiveStoreURL"
@@ -84,6 +86,22 @@ final class StoreCoordinator {
 
   func setLastActiveStore(_ url: URL) {
     UserDefaults.standard.set(url.path, forKey: lastActiveStoreKey)
+  }
+
+  func registerStore(_ manager: StoreManager) {
+    let url = manager.storeRoot
+    openStores[url] = manager
+    storeRefCounts[url, default: 0] += 1
+  }
+
+  func deregisterStore(url: URL) {
+    let count = storeRefCounts[url, default: 0] - 1
+    if count <= 0 {
+      openStores.removeValue(forKey: url)
+      storeRefCounts.removeValue(forKey: url)
+    } else {
+      storeRefCounts[url] = count
+    }
   }
 
   func addRecentStore(_ url: URL) {

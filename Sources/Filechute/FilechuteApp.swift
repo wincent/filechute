@@ -48,6 +48,10 @@ struct FilechuteApp: App {
     Window("Log", id: "log") {
       LogWindowView()
     }
+
+    Window("Databases", id: "database-browser") {
+      DatabaseBrowserView()
+    }
   }
 }
 
@@ -174,6 +178,10 @@ struct FilechuteCommands: Commands {
         openWindow(id: "log")
       }
       .keyboardShortcut("L", modifiers: [.command, .option])
+
+      Button("Databases") {
+        openWindow(id: "database-browser")
+      }
     }
   }
 }
@@ -217,12 +225,16 @@ struct RootView: View {
     }
     .task(id: storeURL) {
       guard storeManager == nil || storeManager?.storeRoot != storeURL else { return }
+      if let old = storeManager {
+        StoreCoordinator.shared.deregisterStore(url: old.storeRoot)
+      }
       do {
         let manager = try StoreManager(storeRoot: storeURL)
         try await manager.refresh()
         self.storeManager = manager
         StoreCoordinator.shared.addRecentStore(storeURL)
         StoreCoordinator.shared.setLastActiveStore(storeURL)
+        StoreCoordinator.shared.registerStore(manager)
         Task.detached(priority: .background) {
           await manager.backfillThumbnails()
         }
@@ -230,11 +242,17 @@ struct RootView: View {
         self.loadError = error.localizedDescription
       }
     }
+    .onDisappear {
+      if let manager = storeManager {
+        StoreCoordinator.shared.deregisterStore(url: manager.storeRoot)
+      }
+    }
   }
 
   private func renameStore(_ newName: String) {
     guard let storeManager else { return }
     do {
+      StoreCoordinator.shared.deregisterStore(url: storeManager.storeRoot)
       let newURL = try StoreCoordinator.shared.renameStore(
         from: storeManager.storeRoot, to: newName
       )

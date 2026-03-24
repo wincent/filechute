@@ -30,6 +30,7 @@
 		4A0000000000000000000095 /* NewStoreSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000026; };
 		4A0000000000000000000096 /* StoreCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000027; };
 		4A0000000000000000000097 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000028; };
+		4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000029; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 		4A0000000000000000000026 /* NewStoreSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewStoreSheet.swift; sourceTree = "<group>"; };
 		4A0000000000000000000027 /* StoreCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCoordinator.swift; sourceTree = "<group>"; };
 		4A0000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4A0000000000000000000029 /* DatabaseBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBrowserView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +101,7 @@
 				4A000000000000000000001E /* BulkTagEditView.swift */,
 				4A0000000000000000000013 /* ColumnBrowserView.swift */,
 				4A0000000000000000000011 /* ContentView.swift */,
+				4A0000000000000000000029 /* DatabaseBrowserView.swift */,
 				4A0000000000000000000012 /* DetailView.swift */,
 				4A0000000000000000000010 /* FilechuteApp.swift */,
 				4A0000000000000000000018 /* KeyEventMonitor.swift */,
@@ -251,6 +254,7 @@
 				4A0000000000000000000095 /* NewStoreSheet.swift in Sources */,
 				4A0000000000000000000096 /* StoreCoordinator.swift in Sources */,
 				4A0000000000000000000097 /* SettingsView.swift in Sources */,
+				4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
