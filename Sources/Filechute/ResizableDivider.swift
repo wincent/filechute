@@ -5,6 +5,8 @@ struct ResizableDivider: View {
   let minHeight: Double
   let maxHeight: Double
 
+  @State private var startHeight: Double?
+
   var body: some View {
     Rectangle()
       .fill(Color(nsColor: .separatorColor))
@@ -17,10 +19,16 @@ struct ResizableDivider: View {
           .contentShape(Rectangle())
           .cursor(.resizeUpDown)
           .gesture(
-            DragGesture(minimumDistance: 1)
+            DragGesture(minimumDistance: 1, coordinateSpace: .global)
               .onChanged { value in
-                let newHeight = height + value.translation.height
+                if startHeight == nil {
+                  startHeight = height
+                }
+                let newHeight = startHeight! + value.translation.height
                 height = min(max(newHeight, minHeight), maxHeight)
+              }
+              .onEnded { _ in
+                startHeight = nil
               }
           )
       }
