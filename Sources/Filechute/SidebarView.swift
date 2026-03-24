@@ -246,7 +246,7 @@ struct SidebarView: View {
         }
       }
       .onDrop(
-        of: [.fileURL, .filechuteObjectIDs, .filechuteFolderID],
+        of: [.fileURL, .filechuteObjectIDs, .filechuteFolderID, .data],
         delegate: FolderDropDelegate(
           folder: folder,
           previousFolderId: previousFolderId,
@@ -569,7 +569,8 @@ private struct FolderDropDelegate: DropDelegate {
   }
 
   func dropUpdated(info: DropInfo) -> DropProposal? {
-    let z = zone(for: info.location)
+    let isFolderDrag = info.hasItemsConforming(to: [.filechuteFolderID])
+    let z = isFolderDrag ? zone(for: info.location) : .nestInside
 
     switch z {
     case .insertBefore:
@@ -601,7 +602,8 @@ private struct FolderDropDelegate: DropDelegate {
   }
 
   func performDrop(info: DropInfo) -> Bool {
-    let z = zone(for: info.location)
+    let isFolderDrag = info.hasItemsConforming(to: [.filechuteFolderID])
+    let z = isFolderDrag ? zone(for: info.location) : .nestInside
     dropTargetFolderId = nil
     dropInsertionPoint = nil
     hoverExpandTimer?.invalidate()
@@ -615,7 +617,6 @@ private struct FolderDropDelegate: DropDelegate {
     let allProviders = info.itemProviders(for: [
       .filechuteFolderID, .filechuteObjectIDs, .fileURL, .data,
     ])
-
     switch z {
     case .insertBefore:
       let point = FolderInsertionPoint(parentId: folder.parentId, afterFolderId: previousFolderId)
@@ -655,11 +656,8 @@ private struct FolderDropDelegate: DropDelegate {
     for provider in providers {
       if provider.hasItemConformingToTypeIdentifier(UTType.filechuteObjectIDs.identifier) {
         handled = true
-        provider.loadItem(forTypeIdentifier: UTType.filechuteObjectIDs.identifier, options: nil) {
-          item, _ in
-          guard let data = item as? Data,
-            let dragged = try? JSONDecoder().decode(DraggedObjectIDs.self, from: data)
-          else { return }
+        _ = provider.loadTransferable(type: DraggedObjectIDs.self) { result in
+          guard let dragged = try? result.get() else { return }
           Task { @MainActor in
             self.onItemsDrop(dragged.ids, folderId)
           }
@@ -697,6 +695,9 @@ private struct FolderDropDelegate: DropDelegate {
   ) -> Bool {
     var handled = false
     for provider in providers {
+      guard provider.hasItemConformingToTypeIdentifier(UTType.filechuteFolderID.identifier) else {
+        continue
+      }
       handled = true
       _ = provider.loadTransferable(type: DraggedFolderID.self) { result in
         guard let dragged = try? result.get() else { return }

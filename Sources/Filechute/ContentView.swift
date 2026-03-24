@@ -460,7 +460,14 @@ struct ContentView: View {
 
   private func dragProvider(for objectIds: [Int64]) -> NSItemProvider {
     let payload = DraggedObjectIDs(ids: objectIds)
-    let internalData = try? JSONEncoder().encode(payload)
+    guard let internalData = try? JSONEncoder().encode(payload) else {
+      return NSItemProvider()
+    }
+
+    let provider = NSItemProvider(
+      item: internalData as NSData,
+      typeIdentifier: UTType.filechuteObjectIDs.identifier
+    )
 
     if objectIds.count == 1, let id = objectIds.first,
       let obj = displayedObjects.first(where: { $0.id == id })
@@ -471,7 +478,6 @@ struct ContentView: View {
         ? obj.name : "\(obj.name).\(obj.fileExtension)"
       let fileAccess = storeManager.fileAccessService
       let database = storeManager.database
-      let provider = NSItemProvider()
       provider.registerFileRepresentation(
         forTypeIdentifier: contentType.identifier,
         fileOptions: [],
@@ -490,29 +496,9 @@ struct ContentView: View {
         }
         return nil
       }
-      if let internalData {
-        provider.registerDataRepresentation(
-          forTypeIdentifier: UTType.filechuteObjectIDs.identifier,
-          visibility: .ownProcess
-        ) { completion in
-          completion(internalData, nil)
-          return nil
-        }
-      }
       provider.suggestedName = nameWithExt
-      return provider
     }
 
-    let provider = NSItemProvider()
-    if let internalData {
-      provider.registerDataRepresentation(
-        forTypeIdentifier: UTType.filechuteObjectIDs.identifier,
-        visibility: .ownProcess
-      ) { completion in
-        completion(internalData, nil)
-        return nil
-      }
-    }
     return provider
   }
 
