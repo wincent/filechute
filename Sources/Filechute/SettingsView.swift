@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
   @State private var patterns: [String] =
     UserDefaults.standard.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
+  @State private var selection: String?
   @State private var newPattern = ""
   @State private var validationError: String?
 
@@ -16,50 +17,47 @@ struct SettingsView: View {
   }
 
   private var importSettings: some View {
-    Form {
-      Section {
-        List {
-          ForEach(patterns, id: \.self) { pattern in
-            HStack {
-              Text(pattern)
-                .font(.body.monospaced())
-              Spacer()
-              Button {
-                remove(pattern)
-              } label: {
-                Image(systemName: "minus.circle.fill")
-                  .foregroundStyle(.red)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-        }
-        .frame(minHeight: 60)
+    VStack(alignment: .leading, spacing: 8) {
+      Text("Ignored File Patterns")
+        .font(.headline)
 
-        HStack {
-          TextField("Pattern (e.g. *.tmp)", text: $newPattern)
-            .textFieldStyle(.roundedBorder)
-            .font(.body.monospaced())
-            .onSubmit { add() }
-          Button("Add", action: add)
-            .disabled(newPattern.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-
-        if let validationError {
-          Text(validationError)
-            .foregroundStyle(.red)
-            .font(.caption)
-        }
-      } header: {
-        Text("Ignored File Patterns")
-      } footer: {
-        Text(
-          "Files matching these patterns are skipped during directory import."
-            + " Use * as a wildcard for zero or more characters."
-        )
+      List(patterns, id: \.self, selection: $selection) { pattern in
+        Text(pattern)
+          .font(.body.monospaced())
       }
+      .listStyle(.bordered(alternatesRowBackgrounds: true))
+
+      HStack(spacing: 4) {
+        TextField("Pattern (e.g. *.tmp)", text: $newPattern)
+          .textFieldStyle(.roundedBorder)
+          .font(.body.monospaced())
+          .onSubmit { add() }
+
+        Button(action: add) {
+          Image(systemName: "plus").frame(width: 16, height: 16)
+        }
+        .disabled(newPattern.trimmingCharacters(in: .whitespaces).isEmpty)
+
+        Button(action: removeSelected) {
+          Image(systemName: "minus").frame(width: 16, height: 16)
+        }
+        .disabled(selection == nil)
+      }
+
+      if let validationError {
+        Text(validationError)
+          .foregroundStyle(.red)
+          .font(.caption)
+      }
+
+      Text(
+        "Files matching these patterns are skipped during directory import."
+          + " Use * as a wildcard for zero or more characters."
+      )
+      .font(.caption)
+      .foregroundStyle(.secondary)
     }
-    .formStyle(.grouped)
+    .padding()
   }
 
   private func add() {
@@ -79,8 +77,10 @@ struct SettingsView: View {
     save()
   }
 
-  private func remove(_ pattern: String) {
-    patterns.removeAll { $0 == pattern }
+  private func removeSelected() {
+    guard let selection else { return }
+    patterns.removeAll { $0 == selection }
+    self.selection = nil
     save()
   }
 
