@@ -29,6 +29,7 @@
 		4A0000000000000000000094 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000025; };
 		4A0000000000000000000095 /* NewStoreSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000026; };
 		4A0000000000000000000096 /* StoreCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000027; };
+		4A0000000000000000000097 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000028; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +67,7 @@
 		4A0000000000000000000025 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000026 /* NewStoreSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewStoreSheet.swift; sourceTree = "<group>"; };
 		4A0000000000000000000027 /* StoreCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCoordinator.swift; sourceTree = "<group>"; };
+		4A0000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +108,7 @@
 				4A0000000000000000000019 /* QuickLookCoordinator.swift */,
 				4A000000000000000000001A /* ResizableDivider.swift */,
 				4A0000000000000000000016 /* SearchField.swift */,
+				4A0000000000000000000028 /* SettingsView.swift */,
 				4A0000000000000000000022 /* SidebarView.swift */,
 				4A0000000000000000000023 /* StatusBarView.swift */,
 				4A0000000000000000000027 /* StoreCoordinator.swift */,
@@ -247,6 +250,7 @@
 				4A0000000000000000000094 /* TrashView.swift in Sources */,
 				4A0000000000000000000095 /* NewStoreSheet.swift in Sources */,
 				4A0000000000000000000096 /* StoreCoordinator.swift in Sources */,
+				4A0000000000000000000097 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

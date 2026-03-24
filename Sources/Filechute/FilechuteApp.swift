@@ -41,6 +41,10 @@ struct FilechuteApp: App {
       FilechuteCommands()
     }
 
+    Settings {
+      SettingsView()
+    }
+
     Window("Log", id: "log") {
       LogWindowView()
     }

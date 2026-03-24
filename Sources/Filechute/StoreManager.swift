@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import FilechuteCore
 import Foundation
 
@@ -266,8 +267,12 @@ final class StoreManager {
   }
 
   func ingestDirectory(at url: URL, intoFolder parentFolderId: Int64? = nil) async throws {
+    let ignorePatterns =
+      UserDefaults.standard.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
     var countPaths: Set<String> = []
-    ingestionProgress.totalFiles = countFiles(at: url, visitedPaths: &countPaths)
+    ingestionProgress.totalFiles = countFiles(
+      at: url, ignorePatterns: ignorePatterns, visitedPaths: &countPaths
+    )
     ingestionProgress.processedFiles = 0
     ingestionProgress.currentFileName = ""
     ingestionProgress.isActive = true
@@ -275,12 +280,21 @@ final class StoreManager {
 
     var visitedPaths: Set<String> = []
     try await ingestDirectoryRecursive(
-      at: url, parentFolderId: parentFolderId, visitedPaths: &visitedPaths
+      at: url, parentFolderId: parentFolderId, ignorePatterns: ignorePatterns,
+      visitedPaths: &visitedPaths
     )
     try await refresh()
   }
 
-  private func countFiles(at url: URL, visitedPaths: inout Set<String>) -> Int {
+  private func shouldIgnoreFile(named name: String, patterns: [String]) -> Bool {
+    patterns.contains { pattern in
+      fnmatch(pattern, name, FNM_NOESCAPE) == 0
+    }
+  }
+
+  private func countFiles(
+    at url: URL, ignorePatterns: [String], visitedPaths: inout Set<String>
+  ) -> Int {
     let realPath = url.resolvingSymlinksInPath().path
     guard !visitedPaths.contains(realPath) else { return 0 }
     visitedPaths.insert(realPath)
@@ -294,8 +308,8 @@ final class StoreManager {
     for item in contents {
       let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
       if isDir {
-        count += countFiles(at: item, visitedPaths: &visitedPaths)
-      } else {
+        count += countFiles(at: item, ignorePatterns: ignorePatterns, visitedPaths: &visitedPaths)
+      } else if !shouldIgnoreFile(named: item.lastPathComponent, patterns: ignorePatterns) {
         count += 1
       }
     }
@@ -303,7 +317,8 @@ final class StoreManager {
   }
 
   private func ingestDirectoryRecursive(
-    at url: URL, parentFolderId: Int64?, visitedPaths: inout Set<String>
+    at url: URL, parentFolderId: Int64?, ignorePatterns: [String],
+    visitedPaths: inout Set<String>
   ) async throws {
     let realPath = url.resolvingSymlinksInPath().path
     guard !visitedPaths.contains(realPath) else {
@@ -326,9 +341,10 @@ final class StoreManager {
       if resourceValues.isDirectory == true {
         dirCount += 1
         try await ingestDirectoryRecursive(
-          at: item, parentFolderId: folder.id, visitedPaths: &visitedPaths
+          at: item, parentFolderId: folder.id, ignorePatterns: ignorePatterns,
+          visitedPaths: &visitedPaths
         )
-      } else {
+      } else if !shouldIgnoreFile(named: item.lastPathComponent, patterns: ignorePatterns) {
         ingestionProgress.currentFileName = item.lastPathComponent
         let object = try await ingestionService.ingest(fileAt: item)
         try await database.addItemToFolder(objectId: object.id, folderId: folder.id)
