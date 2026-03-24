@@ -13,6 +13,10 @@ private enum FolderDropZone {
   case insertAfter
 }
 
+private class OptionClickState {
+  var stabilizing = false
+}
+
 enum NavigationSection: Hashable {
   case store
   case allItems
@@ -55,6 +59,7 @@ struct SidebarView: View {
   @State private var hoverExpandTimer: Timer?
   @State private var folderRowHeight: CGFloat = 28
   @State private var hoveredFolderId: Int64?
+  @State private var optionState = OptionClickState()
 
   private var expandedFolderIdSet: Set<Int64> {
     Set(
@@ -145,8 +150,18 @@ struct SidebarView: View {
       let isExpanded = Binding(
         get: { expandedFolderIdSet.contains(folder.id) },
         set: { newValue in
+          // NSOutlineView (backing SwiftUI List) intercepts option-clicks on
+          // disclosure triangles and fires its own recursive expand/collapse,
+          // which re-invokes this setter for each descendant. Those calls
+          // conflict with our single-shot toggleRecursive update and undo it.
+          // Block them briefly so our state change sticks.
+          if optionState.stabilizing { return }
           if NSEvent.modifierFlags.contains(.option) {
             toggleRecursive(folder.id, expanded: newValue)
+            optionState.stabilizing = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+              optionState.stabilizing = false
+            }
           } else {
             setFolderExpanded(folder.id, expanded: newValue)
           }
