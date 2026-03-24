@@ -97,6 +97,7 @@ struct ContentView: View {
     .onChange(of: storeManager.objects) { _, _ in
       loadFolderObjects(for: sidebarSelection)
     }
+    .focusedSceneValue(\.showBulkTagEditor, $showBulkTagEditor)
   }
 
   private var allItemsView: some View {
@@ -292,8 +293,8 @@ struct ContentView: View {
     keyMonitor.perform = { [self] effect in
       handleEffect(effect)
     }
-    keyMonitor.onBulkTagEdit = { [self] in
-      showBulkTagEditor.toggle()
+    keyMonitor.onBulkTagDismiss = { [self] in
+      showBulkTagEditor = false
     }
     keyMonitor.isBulkTagEditorVisible = { [self] in
       showBulkTagEditor

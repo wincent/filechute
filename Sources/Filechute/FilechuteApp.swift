@@ -74,6 +74,10 @@ struct FocusedNewStoreSheetKey: FocusedValueKey {
   typealias Value = Binding<Bool>
 }
 
+struct FocusedBulkTagEditorKey: FocusedValueKey {
+  typealias Value = Binding<Bool>
+}
+
 extension FocusedValues {
   var storeURL: URL? {
     get { self[FocusedStoreURLKey.self] }
@@ -83,6 +87,11 @@ extension FocusedValues {
   var showNewStoreSheet: Binding<Bool>? {
     get { self[FocusedNewStoreSheetKey.self] }
     set { self[FocusedNewStoreSheetKey.self] = newValue }
+  }
+
+  var showBulkTagEditor: Binding<Bool>? {
+    get { self[FocusedBulkTagEditorKey.self] }
+    set { self[FocusedBulkTagEditorKey.self] = newValue }
   }
 }
 
@@ -149,8 +158,17 @@ struct FileMenuCommands: Commands {
 
 struct FilechuteCommands: Commands {
   @Environment(\.openWindow) private var openWindow
+  @FocusedValue(\.showBulkTagEditor) var showBulkTagEditor
 
   var body: some Commands {
+    CommandGroup(after: .textEditing) {
+      Button("Edit Tags") {
+        showBulkTagEditor?.wrappedValue.toggle()
+      }
+      .keyboardShortcut("t", modifiers: .command)
+      .disabled(showBulkTagEditor == nil)
+    }
+
     CommandMenu("Debug") {
       Button("Show Log") {
         openWindow(id: "log")

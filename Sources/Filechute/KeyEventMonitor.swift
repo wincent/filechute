@@ -6,7 +6,7 @@ final class KeyEventMonitor {
   private var monitor: Any?
   var context: () -> InteractionContext = { InteractionContext() }
   var perform: (InteractionEffect) -> Void = { _ in }
-  var onBulkTagEdit: () -> Void = {}
+  var onBulkTagDismiss: () -> Void = {}
   var isBulkTagEditorVisible: () -> Bool = { false }
   var onDeleteFolder: () -> Void = {}
   var isFolderSelected: () -> Bool = { false }
@@ -16,20 +16,11 @@ final class KeyEventMonitor {
     monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
       guard let self else { return event }
 
-      if event.charactersIgnoringModifiers == "t"
-        && event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
-      {
-        MainActor.assumeIsolated {
-          self.onBulkTagEdit()
-        }
-        return nil
-      }
-
       let bulkTagVisible = MainActor.assumeIsolated { self.isBulkTagEditorVisible() }
       if bulkTagVisible {
         if event.keyCode == 53 {
           MainActor.assumeIsolated {
-            self.onBulkTagEdit()
+            self.onBulkTagDismiss()
           }
           return nil
         }
