@@ -6,6 +6,10 @@ final class FilechuteUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchArguments = [
+            "-StoreBaseDirectory", "/tmp/filechute-uitest",
+            "-UserDefaultsSuite", "dev.wincent.Filechute.UITesting",
+        ]
         app.launch()
     }
 

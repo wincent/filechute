@@ -268,7 +268,7 @@ final class StoreManager {
 
   func ingestDirectory(at url: URL, intoFolder parentFolderId: Int64? = nil) async throws {
     let ignorePatterns =
-      UserDefaults.standard.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
+      AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
     var countPaths: Set<String> = []
     ingestionProgress.totalFiles = countFiles(
       at: url, ignorePatterns: ignorePatterns, visitedPaths: &countPaths

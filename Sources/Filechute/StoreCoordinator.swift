@@ -17,14 +17,22 @@ final class StoreCoordinator {
   private let maxRecentStores = 10
 
   private init() {
-    let appSupport = FileManager.default.urls(
-      for: .applicationSupportDirectory,
-      in: .userDomainMask
-    ).first!
-    let stores =
-      appSupport
-      .appendingPathComponent("Filechute")
-      .appendingPathComponent("stores")
+    let args = CommandLine.arguments
+    let stores: URL
+    if let index = args.firstIndex(of: "-StoreBaseDirectory"),
+      index + 1 < args.count
+    {
+      stores = URL(fileURLWithPath: args[index + 1], isDirectory: true)
+    } else {
+      let appSupport = FileManager.default.urls(
+        for: .applicationSupportDirectory,
+        in: .userDomainMask
+      ).first!
+      stores =
+        appSupport
+        .appendingPathComponent("Filechute")
+        .appendingPathComponent("stores")
+    }
     self.storesDirectory = stores
     self.defaultStoreURL = stores.appendingPathComponent("Default Store.filechute")
     loadRecentStores()
@@ -76,7 +84,7 @@ final class StoreCoordinator {
   }
 
   var lastActiveStoreURL: URL {
-    if let path = UserDefaults.standard.string(forKey: lastActiveStoreKey),
+    if let path = AppDefaults.shared.string(forKey: lastActiveStoreKey),
       FileManager.default.fileExists(atPath: path)
     {
       return URL(fileURLWithPath: path)
@@ -85,7 +93,7 @@ final class StoreCoordinator {
   }
 
   func setLastActiveStore(_ url: URL) {
-    UserDefaults.standard.set(url.path, forKey: lastActiveStoreKey)
+    AppDefaults.shared.set(url.path, forKey: lastActiveStoreKey)
   }
 
   func registerStore(_ manager: StoreManager) {
@@ -124,13 +132,13 @@ final class StoreCoordinator {
   }
 
   private func loadRecentStores() {
-    guard let paths = UserDefaults.standard.stringArray(forKey: recentStoresKey) else { return }
+    guard let paths = AppDefaults.shared.stringArray(forKey: recentStoresKey) else { return }
     recentStores = paths.compactMap { URL(fileURLWithPath: $0) }
       .filter { FileManager.default.fileExists(atPath: $0.path) }
   }
 
   private func saveRecentStores() {
     let paths = recentStores.map(\.path)
-    UserDefaults.standard.set(paths, forKey: recentStoresKey)
+    AppDefaults.shared.set(paths, forKey: recentStoresKey)
   }
 }

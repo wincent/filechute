@@ -22,8 +22,15 @@ app: build
 run: app
 	open $(APP_DIR)
 
+UITEST_DIR = /tmp/filechute-uitest
+UITEST_SUITE = dev.wincent.Filechute.UITesting
+
 uitest:
-	xcodebuild -project Filechute.xcodeproj -scheme Filechute -configuration Debug test -only-testing:FilechuteUITests
+	rm -rf $(UITEST_DIR)
+	mkdir -p $(UITEST_DIR)
+	defaults delete $(UITEST_SUITE) 2>/dev/null || true
+	xcodebuild -project Filechute.xcodeproj -scheme Filechute -configuration Debug test \
+		-only-testing:FilechuteUITests
 
 clean:
 	swift package clean

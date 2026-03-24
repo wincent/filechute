@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @State private var patterns: [String] =
-    UserDefaults.standard.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
+    AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
   @State private var selection: String?
   @State private var newPattern = ""
   @State private var validationError: String?
@@ -85,6 +85,6 @@ struct SettingsView: View {
   }
 
   private func save() {
-    UserDefaults.standard.set(patterns, forKey: "ignoredFilePatterns")
+    AppDefaults.shared.set(patterns, forKey: "ignoredFilePatterns")
   }
 }
