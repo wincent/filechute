@@ -1,3 +1,4 @@
+import AppKit
 import FilechuteCore
 import SwiftUI
 
@@ -10,19 +11,10 @@ struct DatabaseBrowserView: View {
   @State private var rows: [[String?]] = []
   @State private var totalRowCount = 0
   @State private var isLoadingPage = false
+  @State private var sortColumn: String?
+  @State private var sortAscending = true
 
   private let pageSize = 200
-
-  private static let timestampColumns: Set<String> = [
-    "created_at", "modified_at", "last_opened_at", "renamed_at", "deleted_at",
-  ]
-
-  private static let dateFormatter: DateFormatter = {
-    let f = DateFormatter()
-    f.dateStyle = .medium
-    f.timeStyle = .medium
-    return f
-  }()
 
   private var selectedStore: StoreManager? {
     guard let url = selectedStoreURL else { return nil }
@@ -35,8 +27,14 @@ struct DatabaseBrowserView: View {
       Divider()
       if columns.isEmpty {
         emptyState
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        tableContent
+        DatabaseTableView(
+          columns: columns,
+          rows: rows,
+          onLoadMore: loadNextPage,
+          onSort: handleSort
+        )
         Divider()
         footer
       }
@@ -100,81 +98,6 @@ struct DatabaseBrowserView: View {
     )
   }
 
-  private var tableContent: some View {
-    ScrollView([.horizontal, .vertical]) {
-      LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-        Section {
-          ForEach(rows.indices, id: \.self) { index in
-            rowView(rows[index], index: index)
-              .onAppear {
-                if index >= rows.count - 20 {
-                  loadNextPage()
-                }
-              }
-          }
-        } header: {
-          headerView
-        }
-      }
-    }
-  }
-
-  private var headerView: some View {
-    HStack(spacing: 0) {
-      ForEach(columns, id: \.self) { name in
-        Text(name)
-          .font(.caption.bold())
-          .frame(width: 160, alignment: .leading)
-          .padding(.horizontal, 6)
-          .padding(.vertical, 4)
-      }
-    }
-    .background(.bar)
-  }
-
-  private func rowView(_ row: [String?], index: Int) -> some View {
-    HStack(spacing: 0) {
-      ForEach(Array(zip(columns.indices, row)), id: \.0) { colIdx, value in
-        cellView(value: value, columnName: columns[colIdx])
-          .frame(width: 160, alignment: .leading)
-          .padding(.horizontal, 6)
-          .padding(.vertical, 3)
-      }
-    }
-    .background(
-      index % 2 == 0
-        ? Color.clear
-        : Color(nsColor: .alternatingContentBackgroundColors[1])
-    )
-  }
-
-  @ViewBuilder
-  private func cellView(value: String?, columnName: String) -> some View {
-    if let value {
-      if Self.timestampColumns.contains(columnName), let timestamp = Int64(value) {
-        let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
-        Text(Self.dateFormatter.string(from: date))
-          .font(.caption.monospaced())
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .textSelection(.enabled)
-          .help(value)
-      } else {
-        Text(value)
-          .font(.caption.monospaced())
-          .lineLimit(1)
-          .truncationMode(.tail)
-          .textSelection(.enabled)
-          .help(value)
-      }
-    } else {
-      Text("NULL")
-        .font(.caption.monospaced())
-        .foregroundStyle(.tertiary)
-        .italic()
-    }
-  }
-
   private var footer: some View {
     HStack {
       Text("Showing \(rows.count) of \(totalRowCount) rows")
@@ -194,6 +117,8 @@ struct DatabaseBrowserView: View {
     columns = []
     rows = []
     totalRowCount = 0
+    sortColumn = nil
+    sortAscending = true
 
     guard let store = selectedStore else { return }
     Task {
@@ -209,6 +134,8 @@ struct DatabaseBrowserView: View {
     columns = []
     rows = []
     totalRowCount = 0
+    sortColumn = nil
+    sortAscending = true
 
     guard let store = selectedStore, let table = selectedTable else { return }
     Task {
@@ -236,12 +163,193 @@ struct DatabaseBrowserView: View {
       defer { isLoadingPage = false }
       do {
         let newRows = try await store.database.fetchRows(
-          table: table, limit: pageSize, offset: rows.count
+          table: table, limit: pageSize, offset: rows.count,
+          orderBy: sortColumn, ascending: sortAscending
         )
         rows.append(contentsOf: newRows)
       } catch {
         Log.error("Failed to load page: \(error)", category: .database)
       }
+    }
+  }
+
+  private func handleSort(column: String, ascending: Bool) {
+    sortColumn = column
+    sortAscending = ascending
+    rows = []
+
+    guard let store = selectedStore, let table = selectedTable else { return }
+    Task {
+      do {
+        totalRowCount = try await store.database.rowCount(table: table)
+        rows = try await store.database.fetchRows(
+          table: table, limit: pageSize, offset: 0,
+          orderBy: column, ascending: ascending
+        )
+      } catch {
+        Log.error("Failed to sort: \(error)", category: .database)
+      }
+    }
+  }
+}
+
+// MARK: - NSTableView Wrapper
+
+private struct DatabaseTableView: NSViewRepresentable {
+  let columns: [String]
+  let rows: [[String?]]
+  let onLoadMore: () -> Void
+  let onSort: (String, Bool) -> Void
+
+  static let timestampColumns: Set<String> = [
+    "created_at", "modified_at", "last_opened_at", "renamed_at", "deleted_at",
+  ]
+
+  static let dateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateStyle = .medium
+    f.timeStyle = .medium
+    return f
+  }()
+
+  func makeNSView(context: Context) -> NSScrollView {
+    let scrollView = NSScrollView()
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = true
+    scrollView.autohidesScrollers = true
+
+    let tableView = NSTableView()
+    tableView.style = .plain
+    tableView.usesAlternatingRowBackgroundColors = true
+    tableView.allowsColumnReordering = true
+    tableView.allowsColumnResizing = true
+    tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+    tableView.dataSource = context.coordinator
+    tableView.delegate = context.coordinator
+
+    scrollView.documentView = tableView
+    return scrollView
+  }
+
+  func updateNSView(_ scrollView: NSScrollView, context: Context) {
+    guard let tableView = scrollView.documentView as? NSTableView else { return }
+    let coordinator = context.coordinator
+    coordinator.parent = self
+
+    let columnsChanged = coordinator.columns != columns
+
+    if columnsChanged {
+      tableView.sortDescriptors = []
+      for col in tableView.tableColumns.reversed() {
+        tableView.removeTableColumn(col)
+      }
+      for name in columns {
+        let col = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(name))
+        col.title = name
+        col.minWidth = 60
+        col.width = 140
+        col.sortDescriptorPrototype = NSSortDescriptor(key: name, ascending: true)
+        tableView.addTableColumn(col)
+      }
+      coordinator.columns = columns
+      coordinator.rows = rows
+      tableView.reloadData()
+    } else {
+      let oldCount = coordinator.rows.count
+      coordinator.rows = rows
+      if rows.count > oldCount && oldCount > 0 {
+        tableView.insertRows(
+          at: IndexSet(integersIn: oldCount..<rows.count),
+          withAnimation: []
+        )
+      } else if rows.count != oldCount {
+        tableView.reloadData()
+      }
+    }
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(self)
+  }
+
+  class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+    var parent: DatabaseTableView
+    var columns: [String] = []
+    var rows: [[String?]] = []
+
+    init(_ parent: DatabaseTableView) {
+      self.parent = parent
+    }
+
+    func numberOfRows(in tableView: NSTableView) -> Int {
+      rows.count
+    }
+
+    func tableView(
+      _ tableView: NSTableView,
+      viewFor tableColumn: NSTableColumn?,
+      row: Int
+    ) -> NSView? {
+      guard let tableColumn,
+        let colIdx = columns.firstIndex(of: tableColumn.identifier.rawValue),
+        row < rows.count
+      else { return nil }
+
+      let cellId = NSUserInterfaceItemIdentifier("DataCell")
+      let textField: NSTextField
+      if let existing = tableView.makeView(
+        withIdentifier: cellId, owner: nil
+      ) as? NSTextField {
+        textField = existing
+      } else {
+        textField = NSTextField()
+        textField.identifier = cellId
+        textField.isEditable = false
+        textField.isBordered = false
+        textField.drawsBackground = false
+        textField.font = .monospacedSystemFont(
+          ofSize: NSFont.smallSystemFontSize, weight: .regular
+        )
+        textField.lineBreakMode = .byTruncatingTail
+      }
+
+      let value = rows[row][colIdx]
+      if let value {
+        let colName = tableColumn.identifier.rawValue
+        if DatabaseTableView.timestampColumns.contains(colName),
+          let timestamp = Int64(value)
+        {
+          let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
+          textField.stringValue = DatabaseTableView.dateFormatter.string(from: date)
+          textField.toolTip = value
+        } else {
+          textField.stringValue = value
+          textField.toolTip = value
+        }
+        textField.textColor = .labelColor
+      } else {
+        textField.stringValue = "NULL"
+        textField.textColor = .tertiaryLabelColor
+        textField.toolTip = nil
+      }
+
+      if row >= rows.count - 20 {
+        DispatchQueue.main.async { [parent] in
+          parent.onLoadMore()
+        }
+      }
+
+      return textField
+    }
+
+    func tableView(
+      _ tableView: NSTableView,
+      sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]
+    ) {
+      guard let sort = tableView.sortDescriptors.first,
+        let key = sort.key
+      else { return }
+      parent.onSort(key, sort.ascending)
     }
   }
 }

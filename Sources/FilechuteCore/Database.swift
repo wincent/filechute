@@ -930,10 +930,21 @@ public actor Database {
     return Int(counts.first ?? 0)
   }
 
-  public func fetchRows(table: String, limit: Int, offset: Int) throws -> [[String?]] {
+  public func fetchRows(
+    table: String,
+    limit: Int,
+    offset: Int,
+    orderBy: String? = nil,
+    ascending: Bool = true
+  ) throws -> [[String?]] {
     let cols = try columnNames(table: table)
     let colCount = Int32(cols.count)
-    return try query("SELECT * FROM \"\(table)\" LIMIT \(limit) OFFSET \(offset)") { stmt in
+    var sql = "SELECT * FROM \"\(table)\""
+    if let orderBy, cols.contains(orderBy) {
+      sql += " ORDER BY \"\(orderBy)\" \(ascending ? "ASC" : "DESC")"
+    }
+    sql += " LIMIT \(limit) OFFSET \(offset)"
+    return try query(sql) { stmt in
       (0..<colCount).map { i in
         columnText(stmt, i)
       }
