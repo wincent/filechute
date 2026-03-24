@@ -1,7 +1,7 @@
 import Foundation
 
-enum AppDefaults {
-  nonisolated(unsafe) static let shared: UserDefaults = {
+public enum AppDefaults {
+  nonisolated(unsafe) public static let shared: UserDefaults = {
     let args = CommandLine.arguments
     if let index = args.firstIndex(of: "-UserDefaultsSuite"),
       index + 1 < args.count

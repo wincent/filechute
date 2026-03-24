@@ -1,3 +1,4 @@
+import FilechuteCore
 import SwiftUI
 
 struct SettingsView: View {

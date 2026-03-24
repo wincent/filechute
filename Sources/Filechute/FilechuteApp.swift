@@ -1,4 +1,5 @@
 import AppKit
+import FilechuteCore
 import SwiftUI
 import UniformTypeIdentifiers
 

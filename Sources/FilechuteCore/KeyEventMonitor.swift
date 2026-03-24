@@ -1,17 +1,19 @@
 import AppKit
-import FilechuteCore
 
 @MainActor
-final class KeyEventMonitor {
+public final class KeyEventMonitor {
   private var monitor: Any?
-  var context: () -> InteractionContext = { InteractionContext() }
-  var perform: (InteractionEffect) -> Void = { _ in }
-  var onBulkTagDismiss: () -> Void = {}
-  var isBulkTagEditorVisible: () -> Bool = { false }
-  var onDeleteFolder: () -> Void = {}
-  var isFolderSelected: () -> Bool = { false }
+  public var context: () -> InteractionContext = { InteractionContext() }
+  public var perform: (InteractionEffect) -> Void = { _ in }
+  public var onBulkTagDismiss: () -> Void = {}
+  public var isBulkTagEditorVisible: () -> Bool = { false }
+  public var onDeleteFolder: () -> Void = {}
+  public var isFolderSelected: () -> Bool = { false }
+  public var onSearchFocus: () -> Void = {}
 
-  func install() {
+  public init() {}
+
+  public func install() {
     guard monitor == nil else { return }
     monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
       guard let self else { return event }
@@ -31,7 +33,7 @@ final class KeyEventMonitor {
         && event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
       {
         MainActor.assumeIsolated {
-          SearchField.focus()
+          self.onSearchFocus()
         }
         return nil
       }
@@ -56,7 +58,7 @@ final class KeyEventMonitor {
     }
   }
 
-  func uninstall() {
+  public func uninstall() {
     if let monitor {
       NSEvent.removeMonitor(monitor)
     }

@@ -1,15 +1,14 @@
-import FilechuteCore
 import Foundation
 
 @Observable
 @MainActor
-final class StoreCoordinator {
-  static let shared = StoreCoordinator()
+public final class StoreCoordinator {
+  public static let shared = StoreCoordinator()
 
-  let storesDirectory: URL
-  let defaultStoreURL: URL
-  private(set) var recentStores: [URL] = []
-  private(set) var openStores: [URL: StoreManager] = [:]
+  public let storesDirectory: URL
+  public let defaultStoreURL: URL
+  public private(set) var recentStores: [URL] = []
+  public private(set) var openStores: [URL: StoreManager] = [:]
   private var storeRefCounts: [URL: Int] = [:]
 
   private let recentStoresKey = "recentStoreURLs"
@@ -38,7 +37,7 @@ final class StoreCoordinator {
     loadRecentStores()
   }
 
-  func uniqueNewStoreName() -> String {
+  public func uniqueNewStoreName() -> String {
     let fm = FileManager.default
     let base = "New Filechute Store"
     var candidate = base
@@ -52,11 +51,11 @@ final class StoreCoordinator {
     return candidate
   }
 
-  func urlForStoreName(_ name: String) -> URL {
+  public func urlForStoreName(_ name: String) -> URL {
     storesDirectory.appendingPathComponent("\(name).filechute")
   }
 
-  func createStore(name: String) throws -> URL {
+  public func createStore(name: String) throws -> URL {
     let url = urlForStoreName(name)
     try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     addRecentStore(url)
@@ -64,13 +63,13 @@ final class StoreCoordinator {
     return url
   }
 
-  func storeNameExists(_ name: String) -> Bool {
+  public func storeNameExists(_ name: String) -> Bool {
     FileManager.default.fileExists(
       atPath: urlForStoreName(name).path
     )
   }
 
-  func renameStore(from oldURL: URL, to newName: String) throws -> URL {
+  public func renameStore(from oldURL: URL, to newName: String) throws -> URL {
     let newURL = oldURL.deletingLastPathComponent().appendingPathComponent(
       "\(newName).filechute"
     )
@@ -83,7 +82,7 @@ final class StoreCoordinator {
     return newURL
   }
 
-  var lastActiveStoreURL: URL {
+  public var lastActiveStoreURL: URL {
     if let path = AppDefaults.shared.string(forKey: lastActiveStoreKey),
       FileManager.default.fileExists(atPath: path)
     {
@@ -92,17 +91,17 @@ final class StoreCoordinator {
     return defaultStoreURL
   }
 
-  func setLastActiveStore(_ url: URL) {
+  public func setLastActiveStore(_ url: URL) {
     AppDefaults.shared.set(url.path, forKey: lastActiveStoreKey)
   }
 
-  func registerStore(_ manager: StoreManager) {
+  public func registerStore(_ manager: StoreManager) {
     let url = manager.storeRoot
     openStores[url] = manager
     storeRefCounts[url, default: 0] += 1
   }
 
-  func deregisterStore(url: URL) {
+  public func deregisterStore(url: URL) {
     let count = storeRefCounts[url, default: 0] - 1
     if count <= 0 {
       openStores.removeValue(forKey: url)
@@ -112,7 +111,7 @@ final class StoreCoordinator {
     }
   }
 
-  func addRecentStore(_ url: URL) {
+  public func addRecentStore(_ url: URL) {
     recentStores.removeAll { $0 == url }
     recentStores.insert(url, at: 0)
     if recentStores.count > maxRecentStores {
@@ -121,12 +120,12 @@ final class StoreCoordinator {
     saveRecentStores()
   }
 
-  func removeRecentStore(_ url: URL) {
+  public func removeRecentStore(_ url: URL) {
     recentStores.removeAll { $0 == url }
     saveRecentStores()
   }
 
-  func clearRecentStores() {
+  public func clearRecentStores() {
     recentStores.removeAll()
     saveRecentStores()
   }

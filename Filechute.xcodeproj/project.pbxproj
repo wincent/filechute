@@ -12,10 +12,10 @@
 		4A0000000000000000000032 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000012; };
 		4A0000000000000000000033 /* ColumnBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000013; };
 		4A0000000000000000000034 /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000014; };
-		4A0000000000000000000035 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000015; };
+
 		4A0000000000000000000036 /* SearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000016; };
 		4A0000000000000000000037 /* TagAutocompleteField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000017; };
-		4A0000000000000000000038 /* KeyEventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000018; };
+
 		4A0000000000000000000039 /* QuickLookCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000019; };
 		4A000000000000000000003A /* ResizableDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001A; };
 		4A000000000000000000003B /* FilechuteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001B; };
@@ -25,13 +25,13 @@
 		4A0000000000000000000090 /* PreviewGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000001F; };
 		4A0000000000000000000091 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000022; };
 		4A0000000000000000000092 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000023; };
-		4A0000000000000000000093 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000024; };
+
 		4A0000000000000000000094 /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000025; };
 		4A0000000000000000000095 /* NewStoreSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000026; };
-		4A0000000000000000000096 /* StoreCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000027; };
+
 		4A0000000000000000000097 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000028; };
 		4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000029; };
-		4A0000000000000000000099 /* AppDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000002A; };
+
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,10 +50,10 @@
 		4A0000000000000000000012 /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000013 /* ColumnBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnBrowserView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000014 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
-		4A0000000000000000000015 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
+
 		4A0000000000000000000016 /* SearchField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchField.swift; sourceTree = "<group>"; };
 		4A0000000000000000000017 /* TagAutocompleteField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagAutocompleteField.swift; sourceTree = "<group>"; };
-		4A0000000000000000000018 /* KeyEventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyEventMonitor.swift; sourceTree = "<group>"; };
+
 		4A0000000000000000000019 /* QuickLookCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookCoordinator.swift; sourceTree = "<group>"; };
 		4A000000000000000000001A /* ResizableDivider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResizableDivider.swift; sourceTree = "<group>"; };
 		4A000000000000000000001B /* FilechuteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilechuteUITests.swift; sourceTree = "<group>"; };
@@ -65,13 +65,13 @@
 		4A000000000000000000001F /* PreviewGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewGridView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000022 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000023 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
-		4A0000000000000000000024 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+
 		4A0000000000000000000025 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000026 /* NewStoreSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewStoreSheet.swift; sourceTree = "<group>"; };
-		4A0000000000000000000027 /* StoreCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreCoordinator.swift; sourceTree = "<group>"; };
+
 		4A0000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000029 /* DatabaseBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBrowserView.swift; sourceTree = "<group>"; };
-		4A000000000000000000002A /* AppDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDefaults.swift; sourceTree = "<group>"; };
+
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,14 +100,12 @@
 		4A0000000000000000000003 /* Filechute */ = {
 			isa = PBXGroup;
 			children = (
-				4A000000000000000000002A /* AppDefaults.swift */,
 				4A000000000000000000001E /* BulkTagEditView.swift */,
 				4A0000000000000000000013 /* ColumnBrowserView.swift */,
 				4A0000000000000000000011 /* ContentView.swift */,
 				4A0000000000000000000029 /* DatabaseBrowserView.swift */,
 				4A0000000000000000000012 /* DetailView.swift */,
 				4A0000000000000000000010 /* FilechuteApp.swift */,
-				4A0000000000000000000018 /* KeyEventMonitor.swift */,
 				4A0000000000000000000014 /* LogWindow.swift */,
 				4A0000000000000000000026 /* NewStoreSheet.swift */,
 				4A000000000000000000001F /* PreviewGridView.swift */,
@@ -117,10 +115,7 @@
 				4A0000000000000000000028 /* SettingsView.swift */,
 				4A0000000000000000000022 /* SidebarView.swift */,
 				4A0000000000000000000023 /* StatusBarView.swift */,
-				4A0000000000000000000027 /* StoreCoordinator.swift */,
-				4A0000000000000000000015 /* StoreManager.swift */,
 				4A0000000000000000000017 /* TagAutocompleteField.swift */,
-				4A0000000000000000000024 /* ThumbnailCache.swift */,
 				4A0000000000000000000025 /* TrashView.swift */,
 			);
 			path = Sources/Filechute;
@@ -242,23 +237,23 @@
 				4A0000000000000000000032 /* DetailView.swift in Sources */,
 				4A0000000000000000000033 /* ColumnBrowserView.swift in Sources */,
 				4A0000000000000000000034 /* LogWindow.swift in Sources */,
-				4A0000000000000000000035 /* StoreManager.swift in Sources */,
+
 				4A0000000000000000000036 /* SearchField.swift in Sources */,
 				4A0000000000000000000037 /* TagAutocompleteField.swift in Sources */,
-				4A0000000000000000000038 /* KeyEventMonitor.swift in Sources */,
+
 				4A0000000000000000000039 /* QuickLookCoordinator.swift in Sources */,
 				4A000000000000000000003A /* ResizableDivider.swift in Sources */,
 				4A000000000000000000003F /* BulkTagEditView.swift in Sources */,
 				4A0000000000000000000090 /* PreviewGridView.swift in Sources */,
 				4A0000000000000000000091 /* SidebarView.swift in Sources */,
 				4A0000000000000000000092 /* StatusBarView.swift in Sources */,
-				4A0000000000000000000093 /* ThumbnailCache.swift in Sources */,
+
 				4A0000000000000000000094 /* TrashView.swift in Sources */,
 				4A0000000000000000000095 /* NewStoreSheet.swift in Sources */,
-				4A0000000000000000000096 /* StoreCoordinator.swift in Sources */,
+
 				4A0000000000000000000097 /* SettingsView.swift in Sources */,
 				4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */,
-				4A0000000000000000000099 /* AppDefaults.swift in Sources */,
+
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

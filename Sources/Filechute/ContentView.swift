@@ -266,6 +266,9 @@ struct ContentView: View {
         deleteFolderWithUndo(folderId)
       }
     }
+    keyMonitor.onSearchFocus = {
+      SearchField.focus()
+    }
   }
 
   private func handleEffect(_ effect: InteractionEffect) {

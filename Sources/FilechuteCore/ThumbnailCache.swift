@@ -1,8 +1,7 @@
 import AppKit
-import FilechuteCore
 
-final class ThumbnailCache: @unchecked Sendable {
-  static let shared = ThumbnailCache()
+public final class ThumbnailCache: @unchecked Sendable {
+  public static let shared = ThumbnailCache()
 
   private let cache = NSCache<NSString, NSImage>()
 
@@ -10,7 +9,7 @@ final class ThumbnailCache: @unchecked Sendable {
     cache.countLimit = 500
   }
 
-  func image(for hash: ContentHash, at url: URL) -> NSImage? {
+  public func image(for hash: ContentHash, at url: URL) -> NSImage? {
     let key = hash.hexString as NSString
     if let cached = cache.object(forKey: key) {
       return cached
@@ -24,11 +23,11 @@ final class ThumbnailCache: @unchecked Sendable {
     return image
   }
 
-  func invalidate(_ hash: ContentHash) {
+  public func invalidate(_ hash: ContentHash) {
     cache.removeObject(forKey: hash.hexString as NSString)
   }
 
-  func invalidateAll() {
+  public func invalidateAll() {
     cache.removeAllObjects()
   }
 }
