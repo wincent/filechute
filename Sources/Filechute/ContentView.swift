@@ -19,7 +19,6 @@ struct ContentView: View {
   private var columnCustomization: TableColumnCustomization<StoredObject>
   @State private var editingObjectId: Int64?
   @State private var editingName = ""
-  @FocusState private var isEditingFocused: Bool
   @State private var showColumnSettings = false
   @State private var showBulkTagEditor = false
   @State private var keyMonitor = KeyEventMonitor()
@@ -352,14 +351,19 @@ struct ContentView: View {
       columnCustomization: $columnCustomization
     ) {
       TableColumn("Name", value: \StoredObject.name) { obj in
-        if editingObjectId == obj.id {
-          TextField("Name", text: $editingName)
-            .focused($isEditingFocused)
-            .onSubmit { commitRename(for: obj.id) }
-        } else {
-          Text(obj.name)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        Text(obj.name)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .popover(
+            isPresented: Binding(
+              get: { editingObjectId == obj.id },
+              set: { if !$0 { commitRename(for: obj.id) } }
+            )
+          ) {
+            RenamePopover(
+              name: $editingName,
+              onCommit: { commitRename(for: obj.id) }
+            )
+          }
       }
       .customizationID("name")
 
@@ -522,18 +526,17 @@ struct ContentView: View {
   private func startRename(for object: StoredObject) {
     editingName = object.name
     editingObjectId = object.id
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-      isEditingFocused = true
-    }
   }
 
   private func commitRename(for objectId: Int64) {
+    guard editingObjectId == objectId else { return }
     let name = editingName.trimmingCharacters(in: .whitespaces)
     editingObjectId = nil
     guard !name.isEmpty else { return }
     Task {
       try? await storeManager.renameObject(objectId, to: name)
     }
+    refocusTable()
   }
 
   private func cancelRename() {
@@ -834,6 +837,21 @@ struct ContentView: View {
       }
     }
     undoManager.setActionName("Delete")
+  }
+}
+
+private struct RenamePopover: View {
+  @Binding var name: String
+  var onCommit: () -> Void
+  @FocusState private var isFocused: Bool
+
+  var body: some View {
+    TextField("Name", text: $name)
+      .focused($isFocused)
+      .onSubmit { onCommit() }
+      .frame(width: 200)
+      .padding(8)
+      .onAppear { isFocused = true }
   }
 }
 
