@@ -179,6 +179,8 @@ struct BrowserColumnView: View {
         ForEach(sortedItems, id: \.tag.id) { tagCount in
           HStack {
             Text(tagCount.tag.name)
+              .lineLimit(1)
+              .truncationMode(.tail)
             Spacer()
             Text("\(tagCount.count)")
               .foregroundStyle(.secondary)
