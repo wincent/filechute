@@ -101,7 +101,8 @@ struct ContentView: View {
   }
 
   private var allItemsView: some View {
-    VStack(spacing: 0) {
+    let objects = displayedObjects
+    return VStack(spacing: 0) {
       if showColumnBrowser {
         ColumnBrowserView(
           storeManager: storeManager,
@@ -112,55 +113,11 @@ struct ContentView: View {
         ResizableDivider(height: $columnBrowserHeight, minHeight: 80, maxHeight: 400)
       }
 
-      Group {
-        if storeManager.objects.isEmpty {
-          emptyStateView
-        } else if displayedObjects.isEmpty {
-          ContentUnavailableView.search(text: searchText)
-        } else if viewMode == "preview" {
-          PreviewGridView(
-            storeManager: storeManager,
-            objects: displayedObjects,
-            selection: $selection,
-            columnCount: $gridColumnCount,
-            thumbnailSize: thumbnailSize,
-            onOpen: { obj in
-              Task { try? await storeManager.openObject(obj) }
-            },
-            onQuickLook: { obj in
-              activateQuickLook(for: obj)
-            },
-            onRevealInFinder: { obj in
-              Task { try? await storeManager.openObjectWith(obj) }
-            },
-            onDelete: { ids in
-              deleteWithUndo(ids)
-            },
-            currentFolderId: sidebarSelection?.folderId,
-            onRemoveFromFolder: sidebarSelection?.folderId != nil
-              ? { objectId, folderId in
-                Task {
-                  if let folder = try? await storeManager.directFolderForObject(
-                    objectId, inSubtreeOf: folderId
-                  ) {
-                    try? await storeManager.removeItemFromFolder(
-                      objectId: objectId, folderId: folder.id
-                    )
-                    loadFolderObjects(for: sidebarSelection)
-                  }
-                }
-              } : nil,
-            dragProvider: { ids in dragProvider(for: ids) }
-          )
-        } else {
-          tableView
-        }
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      contentArea(objects: objects)
 
       if !storeManager.objects.isEmpty {
         StatusBarView(
-          objects: displayedObjects,
+          objects: objects,
           selection: selection,
           sizesByObject: storeManager.sizesByObject,
           isGridMode: viewMode == "preview",
@@ -169,9 +126,11 @@ struct ContentView: View {
       }
     }
     .inspector(isPresented: $showInspector) {
-      if let selectedObject {
-        DetailView(object: selectedObject, storeManager: storeManager) {
-          activateQuickLook(for: selectedObject)
+      if selection.count == 1, let id = selection.first,
+        let selected = objects.first(where: { $0.id == id })
+      {
+        DetailView(object: selected, storeManager: storeManager) {
+          activateQuickLook(for: selected)
         }
         .inspectorColumnWidth(min: 200, ideal: 280, max: 400)
       } else if selection.count > 1 {
@@ -337,9 +296,59 @@ struct ContentView: View {
     }
   }
 
-  private var tableView: some View {
+  @ViewBuilder
+  private func contentArea(objects: [StoredObject]) -> some View {
+    if storeManager.objects.isEmpty {
+      emptyStateView
+    } else if objects.isEmpty {
+      ContentUnavailableView.search(text: searchText)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    } else if viewMode == "preview" {
+      PreviewGridView(
+        storeManager: storeManager,
+        objects: objects,
+        selection: $selection,
+        columnCount: $gridColumnCount,
+        thumbnailSize: thumbnailSize,
+        onOpen: { obj in
+          Task { try? await storeManager.openObject(obj) }
+        },
+        onQuickLook: { obj in
+          activateQuickLook(for: obj)
+        },
+        onRevealInFinder: { obj in
+          Task { try? await storeManager.openObjectWith(obj) }
+        },
+        onDelete: { ids in
+          deleteWithUndo(ids)
+        },
+        currentFolderId: sidebarSelection?.folderId,
+        onRemoveFromFolder: sidebarSelection?.folderId != nil
+          ? { objectId, folderId in
+            Task {
+              if let folder = try? await storeManager.directFolderForObject(
+                objectId, inSubtreeOf: folderId
+              ) {
+                try? await storeManager.removeItemFromFolder(
+                  objectId: objectId, folderId: folder.id
+                )
+                loadFolderObjects(for: sidebarSelection)
+              }
+            }
+          } : nil,
+        dragProvider: { ids in dragProvider(for: ids) }
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+    } else {
+      tableView(for: objects)
+        .id(sortOrder)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+  }
+
+  private func tableView(for objects: [StoredObject]) -> some View {
     Table(
-      displayedObjects, selection: $selection, sortOrder: $sortOrder,
+      objects, selection: $selection, sortOrder: $sortOrder,
       columnCustomization: $columnCustomization
     ) {
       TableColumn("Name", value: \StoredObject.name) { obj in
@@ -398,7 +407,7 @@ struct ContentView: View {
     }
     .contextMenu(forSelectionType: Int64.self) { ids in
       if let id = ids.first,
-        let obj = displayedObjects.first(where: { $0.id == id })
+        let obj = objects.first(where: { $0.id == id })
       {
         Button("Open") {
           Task { try? await storeManager.openObject(obj) }
@@ -430,7 +439,7 @@ struct ContentView: View {
       }
     } primaryAction: { ids in
       for id in ids {
-        guard let obj = displayedObjects.first(where: { $0.id == id }) else { continue }
+        guard let obj = objects.first(where: { $0.id == id }) else { continue }
         Task { try? await storeManager.openObject(obj) }
       }
     }
