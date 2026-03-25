@@ -70,6 +70,7 @@ struct DatabaseBrowserView: View {
         }
       }
       .frame(width: 200)
+      .accessibilityIdentifier("db-store-picker")
 
       Picker("Table", selection: $selectedTable) {
         Text("Select Table").tag(nil as String?)
@@ -80,6 +81,7 @@ struct DatabaseBrowserView: View {
       }
       .frame(width: 200)
       .disabled(tables.isEmpty)
+      .accessibilityIdentifier("db-table-picker")
 
       Spacer()
     }

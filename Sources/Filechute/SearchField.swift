@@ -11,6 +11,7 @@ struct SearchField: NSViewRepresentable {
     field.usesSingleLineMode = true
     (field.cell as? NSSearchFieldCell)?.isScrollable = true
     field.delegate = context.coordinator
+    field.setAccessibilityIdentifier("search-field")
     return field
   }
 

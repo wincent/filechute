@@ -34,6 +34,7 @@ struct LogWindowView: View {
         }
       }
       .frame(width: 180)
+      .accessibilityIdentifier("log-category-picker")
 
       Picker("Level", selection: $filterLevel) {
         Text("All Levels").tag(nil as LogLevel?)
@@ -43,14 +44,17 @@ struct LogWindowView: View {
         }
       }
       .frame(width: 140)
+      .accessibilityIdentifier("log-level-picker")
 
       Spacer()
 
       Toggle("Auto-scroll", isOn: $autoScroll)
+        .accessibilityIdentifier("log-auto-scroll")
 
       Button("Clear") {
         logStore.clear()
       }
+      .accessibilityIdentifier("log-clear-button")
     }
     .padding(8)
   }

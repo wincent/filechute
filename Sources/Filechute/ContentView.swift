@@ -162,6 +162,7 @@ struct ContentView: View {
         .pickerStyle(.segmented)
         .fixedSize()
         .keyboardShortcut(viewMode == "table" ? "2" : "1", modifiers: .command)
+        .accessibilityIdentifier("view-mode-picker")
       }
       ToolbarItem(placement: .primaryAction) {
         Button {
@@ -169,6 +170,7 @@ struct ContentView: View {
         } label: {
           Label("Add Files", systemImage: "plus")
         }
+        .accessibilityIdentifier("add-files-button")
         .accessibilityLabel("Add files to the store")
       }
       ToolbarItem(placement: .primaryAction) {
@@ -177,6 +179,7 @@ struct ContentView: View {
         } label: {
           Label("Column Browser", systemImage: "rectangle.split.3x1")
         }
+        .accessibilityIdentifier("toggle-column-browser")
         .accessibilityLabel("Toggle column browser")
       }
       ToolbarItem(placement: .primaryAction) {
@@ -188,6 +191,7 @@ struct ContentView: View {
         .popover(isPresented: $showColumnSettings) {
           ColumnSettingsView(customization: $columnCustomization)
         }
+        .accessibilityIdentifier("column-settings-button")
         .accessibilityLabel("Configure visible columns")
       }
       ToolbarItem(placement: .primaryAction) {
@@ -196,13 +200,16 @@ struct ContentView: View {
         } label: {
           Label("Inspector", systemImage: "sidebar.right")
         }
+        .accessibilityIdentifier("toggle-inspector")
         .accessibilityLabel("Toggle inspector panel")
       }
       ToolbarItem(placement: .principal) {
         SearchField(text: $searchText)
           .frame(width: 300)
+          .accessibilityIdentifier("search-field")
       }
     }
+    .accessibilityIdentifier("objects-table")
     .onDrop(of: [.fileURL], isTargeted: nil) { providers in
       handleDrop(providers)
     }
@@ -296,6 +303,7 @@ struct ContentView: View {
     } description: {
       Text("Drop files here or click \(Image(systemName: "plus")) to get started.")
     }
+    .accessibilityIdentifier("empty-state")
   }
 
   @ViewBuilder
@@ -855,6 +863,7 @@ private struct RenamePopover: View {
       .frame(width: 200)
       .padding(8)
       .onAppear { isFocused = true }
+      .accessibilityIdentifier("rename-field")
   }
 }
 
@@ -866,13 +875,19 @@ struct ColumnSettingsView: View {
       Text("Visible Columns")
         .font(.headline)
       Toggle("Type", isOn: visibilityBinding("type"))
+        .accessibilityIdentifier("column-toggle-type")
       Toggle("Size", isOn: visibilityBinding("size"))
+        .accessibilityIdentifier("column-toggle-size")
       Toggle("Date Added", isOn: visibilityBinding("dateAdded"))
+        .accessibilityIdentifier("column-toggle-date-added")
       Toggle("Last Modified", isOn: visibilityBinding("lastModified"))
+        .accessibilityIdentifier("column-toggle-last-modified")
       Toggle("Last Opened", isOn: visibilityBinding("lastOpened"))
+        .accessibilityIdentifier("column-toggle-last-opened")
     }
     .padding()
     .frame(width: 200)
+    .accessibilityIdentifier("column-settings")
   }
 
   private func visibilityBinding(_ id: String) -> Binding<Bool> {
@@ -894,8 +909,10 @@ struct IngestionProgressView: View {
         .font(.headline)
       ProgressView(value: progress.fractionCompleted)
         .frame(width: 280)
+        .accessibilityIdentifier("ingestion-progress-bar")
       Text("\(progress.processedFiles) of \(progress.totalFiles) files")
         .foregroundStyle(.secondary)
+        .accessibilityIdentifier("ingestion-progress-text")
       if !progress.currentFileName.isEmpty {
         Text(progress.currentFileName)
           .font(.caption)
@@ -903,8 +920,10 @@ struct IngestionProgressView: View {
           .lineLimit(1)
           .truncationMode(.middle)
           .frame(width: 280)
+          .accessibilityIdentifier("ingestion-current-file")
       }
     }
     .padding(32)
+    .accessibilityIdentifier("ingestion-progress")
   }
 }

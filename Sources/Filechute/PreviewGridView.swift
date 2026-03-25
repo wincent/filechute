@@ -45,6 +45,7 @@ struct PreviewGridView: View {
                 onCancelRename: { cancelRename() }
               )
               .id(object.id)
+              .accessibilityIdentifier("grid-cell-\(object.id)")
               .onDrag {
                 let ids = Array(selection.contains(object.id) ? selection : [object.id])
                 return dragProvider?(ids) ?? NSItemProvider()
@@ -101,6 +102,7 @@ struct PreviewGridView: View {
         updateColumnCount(for: geometry.size.width)
       }
     }
+    .accessibilityIdentifier("preview-grid")
     .focusable()
     .focusEffectDisabled()
     .focused($isFocused)
@@ -278,6 +280,7 @@ struct PreviewGridCell: View {
           .focused($isEditingFocused)
           .onSubmit { onCommitRename() }
           .onExitCommand { onCancelRename() }
+          .accessibilityIdentifier("grid-rename-field")
       } else {
         Text(object.name)
           .font(.caption)

@@ -27,22 +27,28 @@ struct SettingsView: View {
           .font(.body.monospaced())
       }
       .listStyle(.bordered(alternatesRowBackgrounds: true))
+      .accessibilityIdentifier("ignored-patterns-list")
 
       HStack(spacing: 4) {
         TextField("Pattern (e.g. *.tmp)", text: $newPattern)
           .textFieldStyle(.roundedBorder)
           .font(.body.monospaced())
           .onSubmit { add() }
+          .accessibilityIdentifier("ignored-pattern-field")
 
         Button(action: add) {
           Image(systemName: "plus").frame(width: 16, height: 16)
         }
         .disabled(newPattern.trimmingCharacters(in: .whitespaces).isEmpty)
+        .accessibilityIdentifier("add-pattern-button")
+        .accessibilityLabel("Add pattern")
 
         Button(action: removeSelected) {
           Image(systemName: "minus").frame(width: 16, height: 16)
         }
         .disabled(selection == nil)
+        .accessibilityIdentifier("remove-pattern-button")
+        .accessibilityLabel("Remove pattern")
       }
 
       if let validationError {

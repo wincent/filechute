@@ -29,6 +29,7 @@ struct DetailView: View {
             }
             .buttonStyle(.borderless)
             .help("Rename history")
+            .accessibilityIdentifier("rename-history-button")
             .popover(isPresented: $showRenameHistory) {
               RenameHistoryView(entries: renameHistory)
             }
@@ -51,17 +52,20 @@ struct DetailView: View {
           Task { try? await storeManager.openObject(object) }
         }
         .keyboardShortcut("o", modifiers: .command)
+        .accessibilityIdentifier("detail-open-button")
         .accessibilityLabel("Open file in default application")
 
         Button("Quick Look") {
           onQuickLook()
         }
         .keyboardShortcut(" ", modifiers: [])
+        .accessibilityIdentifier("detail-quicklook-button")
         .accessibilityLabel("Preview file with Quick Look")
 
         Button("Reveal in Finder") {
           Task { try? await storeManager.openObjectWith(object) }
         }
+        .accessibilityIdentifier("detail-reveal-button")
         .accessibilityLabel("Show file in Finder")
       }
 
@@ -69,6 +73,7 @@ struct DetailView: View {
         TextEditor(text: $notesText)
           .font(.body)
           .frame(minHeight: 60)
+          .accessibilityIdentifier("detail-notes-editor")
           .onChange(of: notesText) {
             let trimmed = notesText.trimmingCharacters(in: .whitespacesAndNewlines)
             let value = trimmed.isEmpty ? nil : notesText
@@ -93,8 +98,10 @@ struct DetailView: View {
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("remove-tag-\(tag.name)")
             .accessibilityLabel("Remove tag \(tag.name)")
           }
+          .accessibilityIdentifier("tag-\(tag.name)")
         }
 
         if !suggestedTags.isEmpty {
@@ -113,6 +120,7 @@ struct DetailView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityIdentifier("suggested-tag-\(suggestion)")
                 .accessibilityLabel("Add suggested tag \(suggestion)")
               }
             }
@@ -150,6 +158,7 @@ struct DetailView: View {
               .font(.caption)
             }
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("version-\(version.id)")
             .accessibilityLabel("Version from \(version.createdAt.formatted())")
           }
         }
@@ -223,5 +232,6 @@ struct RenameHistoryView: View {
     }
     .padding()
     .frame(minWidth: 250)
+    .accessibilityIdentifier("rename-history")
   }
 }

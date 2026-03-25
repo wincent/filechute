@@ -25,6 +25,7 @@ struct ColumnBrowserView: View {
             }
           )
           .id(0)
+          .accessibilityIdentifier("browser-column-0")
           .accessibilityLabel("All tags")
 
           ForEach(Array(columns.enumerated()), id: \.offset) { index, column in
@@ -48,6 +49,7 @@ struct ColumnBrowserView: View {
                 }
               )
               .id(index + 1)
+              .accessibilityIdentifier("browser-column-\(index + 1)")
               .accessibilityLabel("Refinement column \(index + 1)")
             }
           }
@@ -166,6 +168,7 @@ struct BrowserColumnView: View {
             localSelection = []
             onSelect([])
           }
+          .accessibilityIdentifier("browser-column-\(columnIndex)-all")
           .accessibilityLabel("Show all, \(items.count) tags")
         sortMenu
       }
@@ -187,6 +190,7 @@ struct BrowserColumnView: View {
               .font(.caption)
           }
           .tag(tagCount.tag.id)
+          .accessibilityIdentifier("browser-tag-\(tagCount.tag.name)")
           .accessibilityLabel("\(tagCount.tag.name), \(tagCount.count) items")
         }
       }
@@ -250,6 +254,7 @@ struct BrowserColumnView: View {
     }
     .menuStyle(.borderlessButton)
     .fixedSize()
+    .accessibilityIdentifier("browser-column-\(columnIndex)-sort")
     .accessibilityLabel("Sort order")
   }
 }

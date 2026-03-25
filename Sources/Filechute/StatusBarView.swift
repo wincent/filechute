@@ -19,6 +19,7 @@ struct StatusBarView: View {
       Text(summaryText)
         .font(.caption)
         .foregroundStyle(.secondary)
+        .accessibilityIdentifier("status-bar-summary")
 
       Spacer()
 
@@ -26,11 +27,14 @@ struct StatusBarView: View {
         Slider(value: $thumbnailSize, in: 64...1280)
           .frame(width: sliderWidth)
           .controlSize(.mini)
+          .accessibilityIdentifier("thumbnail-size-slider")
+          .accessibilityLabel("Thumbnail size")
       }
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 4)
     .background(.bar)
+    .accessibilityIdentifier("status-bar")
   }
 
   private let sliderWidth: CGFloat = 100

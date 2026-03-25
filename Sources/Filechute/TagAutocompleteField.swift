@@ -52,12 +52,14 @@ struct TagAutocompleteField: View {
             selectedIndex = -1
             return .handled
           }
+          .accessibilityIdentifier("tag-field")
           .accessibilityLabel("New tag name")
         Button(action: submitTag) {
           Image(systemName: "plus.circle.fill")
         }
         .buttonStyle(.borderless)
         .disabled(text.trimmingCharacters(in: .whitespaces).isEmpty)
+        .accessibilityIdentifier("add-tag-button")
         .accessibilityLabel("Add tag")
       }
 
@@ -83,6 +85,7 @@ struct TagAutocompleteField: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("tag-suggestion-\(tag.name)")
             .accessibilityLabel("Suggestion: \(tag.name)")
           }
         }

@@ -20,19 +20,23 @@ struct NewStoreSheet: View {
         .textFieldStyle(.roundedBorder)
         .frame(width: 300)
         .onSubmit { create() }
+        .accessibilityIdentifier("new-store-name-field")
 
       if let errorMessage {
         Text(errorMessage)
           .foregroundStyle(.red)
           .font(.caption)
+          .accessibilityIdentifier("new-store-error")
       }
 
       HStack {
         Button("Cancel") { dismiss() }
           .keyboardShortcut(.cancelAction)
+          .accessibilityIdentifier("new-store-cancel")
         Button("Create") { create() }
           .keyboardShortcut(.defaultAction)
           .disabled(storeName.trimmingCharacters(in: .whitespaces).isEmpty)
+          .accessibilityIdentifier("new-store-create")
       }
     }
     .padding(20)

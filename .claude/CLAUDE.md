@@ -2,9 +2,17 @@
 
 Before committing, run `bin/check-format` and fix any issues with `bin/format`.
 
+# Architecture
+
+Prefer putting logic in `Sources/FilechuteCore/` where it can be covered by fast unit tests (`make test`). Keep `Sources/Filechute/` as a thin UI layer — UI tests (`make uitest`) are slow and brittle, so minimize the amount of behavior that can only be verified through them.
+
 # Testing
 
 When fixing a bug, add a regression test that fails without the fix. Run tests with `make test`.
+
+# Accessibility
+
+Add `.accessibilityIdentifier()` to UI elements so they can be targeted reliably in UI tests. This avoids fragile queries based on element indices or display text. Use `.accessibilityLabel()` on interactive elements for VoiceOver support — labels should be concise, human-readable descriptions of what the element does.
 
 # Xcode project
 

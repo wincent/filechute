@@ -38,6 +38,7 @@ struct TrashView: View {
         } description: {
           Text("Deleted items will appear here.")
         }
+        .accessibilityIdentifier("trash-empty-state")
       } else if displayedObjects.isEmpty {
         ContentUnavailableView.search(text: searchText)
       } else {
@@ -107,6 +108,8 @@ struct TrashView: View {
         .keyboardShortcut(.delete, modifiers: .command)
         .help("Permanently delete selected items")
         .disabled(selection.isEmpty)
+        .accessibilityIdentifier("delete-permanently-button")
+        .accessibilityLabel("Permanently delete selected items")
       }
       ToolbarItem(placement: .primaryAction) {
         Button {
@@ -114,11 +117,13 @@ struct TrashView: View {
         } label: {
           Label("Inspector", systemImage: "sidebar.right")
         }
+        .accessibilityIdentifier("toggle-inspector")
         .accessibilityLabel("Toggle inspector panel")
       }
       ToolbarItem(placement: .principal) {
         SearchField(text: $searchText)
           .frame(width: 300)
+          .accessibilityIdentifier("trash-search-field")
       }
     }
     .confirmationDialog(
@@ -194,5 +199,6 @@ struct TrashView: View {
         }
       }
     }
+    .accessibilityIdentifier("trash-table")
   }
 }

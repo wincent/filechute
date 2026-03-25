@@ -52,6 +52,7 @@ struct BulkTagEditView: View {
       .clipShape(RoundedRectangle(cornerRadius: 12))
       .shadow(radius: 20)
       .frame(width: 360)
+      .accessibilityIdentifier("bulk-tag-editor")
       .onKeyPress(.tab) {
         if focus == .textField && !tagEntries.isEmpty {
           focus = .tagList
@@ -89,6 +90,8 @@ struct BulkTagEditView: View {
           .foregroundStyle(.secondary)
       }
       .buttonStyle(.borderless)
+      .accessibilityIdentifier("bulk-tag-dismiss")
+      .accessibilityLabel("Close tag editor")
     }
     .padding()
   }
@@ -164,6 +167,7 @@ struct BulkTagEditView: View {
       )
     }
     .buttonStyle(.plain)
+    .accessibilityIdentifier("bulk-tag-\(tag.name)")
   }
 
   @ViewBuilder

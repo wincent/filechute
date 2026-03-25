@@ -92,6 +92,7 @@ struct SidebarView: View {
       storeRow
       Label("All Items", systemImage: NavigationSection.allItems.icon)
         .tag(NavigationSection.allItems)
+        .accessibilityIdentifier("sidebar-all-items")
 
       Section {
         ForEach(Array(rootFolders.enumerated()), id: \.element.id) { index, folder in
@@ -110,6 +111,8 @@ struct SidebarView: View {
               .font(.system(size: 11))
           }
           .buttonStyle(.plain)
+          .accessibilityIdentifier("create-folder-button")
+          .accessibilityLabel("Create folder")
         }
         .padding(.trailing, 14)
         .onDrop(of: [.filechuteFolderID], isTargeted: nil) { providers in
@@ -120,6 +123,7 @@ struct SidebarView: View {
       Label("Trash", systemImage: NavigationSection.trash.icon)
         .badge(storeManager.deletedObjects.count)
         .tag(NavigationSection.trash)
+        .accessibilityIdentifier("sidebar-trash")
     }
     .animation(nil, value: storeManager.folders.map(\.id))
     .animation(nil, value: expandedFolderIds)
@@ -199,10 +203,12 @@ struct SidebarView: View {
           .focused($isFolderRenameFocused)
           .onSubmit { commitFolderRename(folder.id) }
           .onExitCommand { cancelFolderRename() }
+          .accessibilityIdentifier("folder-rename-field")
       } icon: {
         Image(systemName: "folder")
       }
       .tag(NavigationSection.folder(folder.id))
+      .accessibilityIdentifier("folder-\(folder.id)")
     } else {
       let afterPoint = FolderInsertionPoint(
         parentId: folder.parentId, afterFolderId: folder.id
@@ -224,11 +230,14 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .opacity(hoveredFolderId == folder.id ? 1 : 0)
+        .accessibilityIdentifier("create-subfolder-\(folder.id)")
+        .accessibilityLabel("Create subfolder")
       }
       .onHover { hovering in
         hoveredFolderId = hovering ? folder.id : nil
       }
       .tag(NavigationSection.folder(folder.id))
+      .accessibilityIdentifier("folder-\(folder.id)")
       .background {
         GeometryReader { geo in
           Color.clear.onAppear { folderRowHeight = geo.size.height }
@@ -484,9 +493,11 @@ struct SidebarView: View {
         .onSubmit { commitRename() }
         .onExitCommand { cancelRename() }
         .tag(NavigationSection.store)
+        .accessibilityIdentifier("store-rename-field")
     } else {
       Label(storeManager.storeName, systemImage: NavigationSection.store.icon)
         .tag(NavigationSection.store)
+        .accessibilityIdentifier("sidebar-store")
         .contextMenu {
           Button("Rename") {
             startRename()
