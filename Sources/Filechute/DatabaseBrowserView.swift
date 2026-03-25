@@ -13,6 +13,7 @@ struct DatabaseBrowserView: View {
   @State private var isLoadingPage = false
   @State private var sortColumn: String?
   @State private var sortAscending = true
+  @Environment(\.openWindow) private var openWindow
 
   private let pageSize = 200
 
@@ -42,9 +43,11 @@ struct DatabaseBrowserView: View {
     .frame(minWidth: 700, minHeight: 400)
     .onChange(of: selectedStoreURL) {
       loadTables()
+      syncTableInfoState()
     }
     .onChange(of: selectedTable) {
       loadTableData()
+      syncTableInfoState()
     }
     .onAppear {
       if selectedStoreURL == nil {
@@ -83,6 +86,14 @@ struct DatabaseBrowserView: View {
       .disabled(tables.isEmpty)
       .accessibilityIdentifier("db-table-picker")
 
+      Button {
+        openWindow(id: "table-info")
+      } label: {
+        Image(systemName: "info.circle")
+      }
+      .accessibilityIdentifier("db-table-info-button")
+      .accessibilityLabel("Table Info")
+
       Spacer()
     }
     .padding(8)
@@ -109,6 +120,12 @@ struct DatabaseBrowserView: View {
     }
     .padding(.horizontal, 8)
     .padding(.vertical, 4)
+  }
+
+  private func syncTableInfoState() {
+    let state = TableInfoState.shared
+    state.database = selectedStore?.database
+    state.tableName = selectedTable
   }
 
   // MARK: - Data Loading

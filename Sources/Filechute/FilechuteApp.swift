@@ -54,6 +54,10 @@ struct FilechuteApp: App {
     Window("Databases", id: "database-browser") {
       DatabaseBrowserView()
     }
+
+    Window("Table Info", id: "table-info") {
+      TableInfoView()
+    }
   }
 }
 
@@ -193,13 +197,13 @@ struct FilechuteCommands: Commands {
       .disabled(showBulkTagEditor == nil)
     }
 
-    CommandMenu("Debug") {
+    CommandMenu("Develop") {
       Button("Show Log") {
         openWindow(id: "log")
       }
       .keyboardShortcut("L", modifiers: [.command, .option])
 
-      Button("Databases") {
+      Button("Databases\u{2026}") {
         openWindow(id: "database-browser")
       }
     }

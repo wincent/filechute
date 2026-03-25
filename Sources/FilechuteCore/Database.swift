@@ -1063,6 +1063,75 @@ public actor Database {
     }
   }
 
+  public struct TableInfo: Sendable {
+    public let schema: String
+    public let columns: [ColumnInfo]
+    public let indices: [IndexInfo]
+    public let rowCount: Int
+  }
+
+  public struct ColumnInfo: Sendable {
+    public let name: String
+    public let type: String
+    public let notNull: Bool
+    public let defaultValue: String?
+    public let primaryKey: Bool
+  }
+
+  public struct IndexInfo: Sendable {
+    public let name: String
+    public let unique: Bool
+    public let columns: [String]
+  }
+
+  public func tableInfo(table: String) throws -> TableInfo {
+    guard try tableNames().contains(table) else {
+      throw DatabaseError.executionFailed("Unknown table: \(table)")
+    }
+
+    let schemas = try query(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+      bind: { stmt in sqlite3_bind_text(stmt, 1, table, -1, SQLITE_TRANSIENT) },
+      read: { stmt in self.columnText(stmt, 0) ?? "" }
+    )
+    let schema = schemas.first ?? ""
+
+    let columns = try query("PRAGMA table_info(\"\(table)\")") { stmt in
+      ColumnInfo(
+        name: columnText(stmt, 1)!,
+        type: columnText(stmt, 2) ?? "",
+        notNull: sqlite3_column_int(stmt, 3) != 0,
+        defaultValue: columnText(stmt, 4),
+        primaryKey: sqlite3_column_int(stmt, 5) != 0
+      )
+    }
+
+    let indexNames = try query(
+      "SELECT name, \"unique\" FROM pragma_index_list(\"\(table)\")"
+    ) { stmt in
+      (name: columnText(stmt, 0)!, unique: sqlite3_column_int(stmt, 1) != 0)
+    }
+
+    var indices: [IndexInfo] = []
+    for idx in indexNames {
+      let cols = try query(
+        "SELECT name FROM pragma_index_info('\(idx.name)')"
+      ) { stmt in
+        columnText(stmt, 0) ?? ""
+      }
+      indices.append(IndexInfo(name: idx.name, unique: idx.unique, columns: cols))
+    }
+
+    let count = try rowCount(table: table)
+
+    return TableInfo(
+      schema: schema,
+      columns: columns,
+      indices: indices,
+      rowCount: count
+    )
+  }
+
   // MARK: - Internal helpers
 
   private func execute(_ sql: String) throws {

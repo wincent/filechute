@@ -32,6 +32,7 @@
 		4A0000000000000000000097 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000028; };
 		4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000029; };
 		4A0000000000000000000099 /* DockProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000002A; };
+		4A000000000000000000009A /* TableInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000002B; };
 
 /* End PBXBuildFile section */
 
@@ -73,6 +74,7 @@
 		4A0000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000029 /* DatabaseBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBrowserView.swift; sourceTree = "<group>"; };
 		4A000000000000000000002A /* DockProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockProgress.swift; sourceTree = "<group>"; };
+		4A000000000000000000002B /* TableInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableInfoView.swift; sourceTree = "<group>"; };
 
 /* End PBXFileReference section */
 
@@ -118,6 +120,7 @@
 				4A0000000000000000000028 /* SettingsView.swift */,
 				4A0000000000000000000022 /* SidebarView.swift */,
 				4A0000000000000000000023 /* StatusBarView.swift */,
+				4A000000000000000000002B /* TableInfoView.swift */,
 				4A0000000000000000000017 /* TagAutocompleteField.swift */,
 				4A0000000000000000000025 /* TrashView.swift */,
 			);
@@ -257,6 +260,7 @@
 				4A0000000000000000000097 /* SettingsView.swift in Sources */,
 				4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */,
 				4A0000000000000000000099 /* DockProgress.swift in Sources */,
+				4A000000000000000000009A /* TableInfoView.swift in Sources */,
 
 			);
 			runOnlyForDeploymentPostprocessing = 0;
