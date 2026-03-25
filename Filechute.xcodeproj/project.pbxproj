@@ -31,6 +31,7 @@
 
 		4A0000000000000000000097 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000028; };
 		4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A0000000000000000000029; };
+		4A0000000000000000000099 /* DockProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A000000000000000000002A; };
 
 /* End PBXBuildFile section */
 
@@ -71,6 +72,7 @@
 
 		4A0000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A0000000000000000000029 /* DatabaseBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseBrowserView.swift; sourceTree = "<group>"; };
+		4A000000000000000000002A /* DockProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockProgress.swift; sourceTree = "<group>"; };
 
 /* End PBXFileReference section */
 
@@ -105,6 +107,7 @@
 				4A0000000000000000000011 /* ContentView.swift */,
 				4A0000000000000000000029 /* DatabaseBrowserView.swift */,
 				4A0000000000000000000012 /* DetailView.swift */,
+				4A000000000000000000002A /* DockProgress.swift */,
 				4A0000000000000000000010 /* FilechuteApp.swift */,
 				4A0000000000000000000014 /* LogWindow.swift */,
 				4A0000000000000000000026 /* NewStoreSheet.swift */,
@@ -253,6 +256,7 @@
 
 				4A0000000000000000000097 /* SettingsView.swift in Sources */,
 				4A0000000000000000000098 /* DatabaseBrowserView.swift in Sources */,
+				4A0000000000000000000099 /* DockProgress.swift in Sources */,
 
 			);
 			runOnlyForDeploymentPostprocessing = 0;

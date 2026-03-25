@@ -246,6 +246,7 @@ struct RootView: View {
   @State private var currentStoreURL: URL?
   @State private var loadError: String?
   @State private var showNewStoreSheet = false
+  @State private var dockProgress: DockProgress?
 
   private var storeURL: URL {
     currentStoreURL ?? requestedURL ?? StoreCoordinator.shared.lastActiveStoreURL
@@ -285,6 +286,7 @@ struct RootView: View {
         let manager = try StoreManager(storeRoot: storeURL)
         try await manager.refresh()
         self.storeManager = manager
+        self.dockProgress = DockProgress(progress: manager.ingestionProgress)
         StoreCoordinator.shared.addRecentStore(storeURL)
         StoreCoordinator.shared.setLastActiveStore(storeURL)
         StoreCoordinator.shared.registerStore(manager)
