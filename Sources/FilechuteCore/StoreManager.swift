@@ -269,7 +269,7 @@ public final class StoreManager {
 
   public func ingestDirectory(at url: URL, intoFolder parentFolderId: Int64? = nil) async throws {
     let ignorePatterns =
-      AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
+      AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store", ".git"]
     var countPaths: Set<String> = []
     ingestionProgress.totalFiles = countFiles(
       at: url, ignorePatterns: ignorePatterns, visitedPaths: &countPaths
@@ -307,10 +307,13 @@ public final class StoreManager {
     else { return 0 }
     var count = 0
     for item in contents {
+      let name = item.lastPathComponent
       let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
       if isDir {
-        count += countFiles(at: item, ignorePatterns: ignorePatterns, visitedPaths: &visitedPaths)
-      } else if !shouldIgnoreFile(named: item.lastPathComponent, patterns: ignorePatterns) {
+        if !shouldIgnoreFile(named: name, patterns: ignorePatterns) {
+          count += countFiles(at: item, ignorePatterns: ignorePatterns, visitedPaths: &visitedPaths)
+        }
+      } else if !shouldIgnoreFile(named: name, patterns: ignorePatterns) {
         count += 1
       }
     }
@@ -341,14 +344,17 @@ public final class StoreManager {
     var fileCount = 0
     var dirCount = 0
     for item in contents {
+      let name = item.lastPathComponent
       let resourceValues = try item.resourceValues(forKeys: [.isDirectoryKey])
       if resourceValues.isDirectory == true {
-        dirCount += 1
-        try await ingestDirectoryRecursive(
-          at: item, parentFolderId: folder.id, ignorePatterns: ignorePatterns,
-          visitedPaths: &visitedPaths
-        )
-      } else if !shouldIgnoreFile(named: item.lastPathComponent, patterns: ignorePatterns) {
+        if !shouldIgnoreFile(named: name, patterns: ignorePatterns) {
+          dirCount += 1
+          try await ingestDirectoryRecursive(
+            at: item, parentFolderId: folder.id, ignorePatterns: ignorePatterns,
+            visitedPaths: &visitedPaths
+          )
+        }
+      } else if !shouldIgnoreFile(named: name, patterns: ignorePatterns) {
         ingestionProgress.currentFileName = item.lastPathComponent
         let object = try await ingestionService.ingest(fileAt: item)
         try await database.addItemToFolder(objectId: object.id, folderId: folder.id)

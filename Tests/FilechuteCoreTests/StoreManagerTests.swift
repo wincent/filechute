@@ -569,6 +569,32 @@ struct StoreManagerDirectoryIngestionTests {
     }
   }
 
+  @Test("Ingest directory skips .git directories")
+  func skipsGitDirectory() async throws {
+    try await withStoreManager { manager in
+      let dir = try makeTempDir()
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let folder = dir.appendingPathComponent("Folder")
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      _ = try createTempFile(in: folder, name: "good.txt", contents: "keep")
+
+      let gitDir = folder.appendingPathComponent(".git")
+      try FileManager.default.createDirectory(at: gitDir, withIntermediateDirectories: true)
+      _ = try createTempFile(in: gitDir, name: "HEAD", contents: "ref: refs/heads/main")
+
+      try await manager.ingestDirectory(at: folder)
+
+      let objects = await manager.objects
+      #expect(objects.count == 1)
+      #expect(objects[0].name == "good")
+
+      let folders = await manager.folders
+      #expect(folders.count == 1)
+      #expect(folders[0].name == "Folder")
+    }
+  }
+
   @Test("Ingest directory tracks progress")
   func tracksProgress() async throws {
     try await withStoreManager { manager in

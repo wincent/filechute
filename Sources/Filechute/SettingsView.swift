@@ -3,7 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
   @State private var patterns: [String] =
-    AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store"]
+    AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store", ".git"]
   @State private var selection: String?
   @State private var newPattern = ""
   @State private var validationError: String?
@@ -19,12 +19,12 @@ struct SettingsView: View {
 
   private var importSettings: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text("Ignored File Patterns")
+      Text("Ignored File and Directory Patterns")
         .font(.headline)
 
       List(patterns, id: \.self, selection: $selection) { pattern in
         Text(pattern)
-          .font(.body.monospaced())
+          .font(.body)
       }
       .listStyle(.bordered(alternatesRowBackgrounds: true))
       .accessibilityIdentifier("ignored-patterns-list")
@@ -32,7 +32,7 @@ struct SettingsView: View {
       HStack(spacing: 4) {
         TextField("Pattern (e.g. *.tmp)", text: $newPattern)
           .textFieldStyle(.roundedBorder)
-          .font(.body.monospaced())
+          .font(.body)
           .onSubmit { add() }
           .accessibilityIdentifier("ignored-pattern-field")
 
@@ -58,7 +58,7 @@ struct SettingsView: View {
       }
 
       Text(
-        "Files matching these patterns are skipped during directory import."
+        "Files and directories matching these patterns are skipped during directory import."
           + " Use * as a wildcard for zero or more characters."
       )
       .font(.caption)
