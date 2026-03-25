@@ -172,11 +172,11 @@ example-based tests.
 
 #### FTS5 query sanitization
 
-| Property | Description |
-| --- | --- |
-| No FTS5 syntax errors | For any input string, passing the sanitized output to `sqlite3_prepare_v2` with a `MATCH` clause does not return `SQLITE_ERROR`. (Requires a live FTS5 table in the test database.) |
-| Roundtrip preservation | For any input consisting only of alphanumeric words separated by spaces, every word appears as a prefix-match term in the sanitized output. |
-| No raw special characters | The sanitized output never contains unescaped `"`, `*`, `(`, `)`, or `:` outside of the quoting structure the sanitizer itself produces. |
+| Property                  | Description                                                                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No FTS5 syntax errors     | For any input string, passing the sanitized output to `sqlite3_prepare_v2` with a `MATCH` clause does not return `SQLITE_ERROR`. (Requires a live FTS5 table in the test database.) |
+| Roundtrip preservation    | For any input consisting only of alphanumeric words separated by spaces, every word appears as a prefix-match term in the sanitized output.                                         |
+| No raw special characters | The sanitized output never contains unescaped `"`, `*`, `(`, `)`, or `:` outside of the quoting structure the sanitizer itself produces.                                            |
 
 Generator: `Gen.unicodeString()` biased toward strings containing FTS5
 operator keywords (`NEAR`, `AND`, `OR`, `NOT`) and special characters
@@ -184,12 +184,12 @@ operator keywords (`NEAR`, `AND`, `OR`, `NOT`) and special characters
 
 #### UTF-8 truncation
 
-| Property | Description |
-| --- | --- |
-| Valid UTF-8 | `String(data: result.data(using: .utf8)!, encoding: .utf8) != nil` for all inputs. Equivalently: the result's `utf8.count` is its byte length. |
-| Respects byte limit | `result.utf8.count <= maxBytes` for all `(string, maxBytes)` pairs. |
-| Idempotent | `truncate(truncate(s, to: n), to: n) == truncate(s, to: n)`. |
-| Short passthrough | If `s.utf8.count <= maxBytes`, the result equals the original string. |
+| Property            | Description                                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Valid UTF-8         | `String(data: result.data(using: .utf8)!, encoding: .utf8) != nil` for all inputs. Equivalently: the result's `utf8.count` is its byte length. |
+| Respects byte limit | `result.utf8.count <= maxBytes` for all `(string, maxBytes)` pairs.                                                                            |
+| Idempotent          | `truncate(truncate(s, to: n), to: n) == truncate(s, to: n)`.                                                                                   |
+| Short passthrough   | If `s.utf8.count <= maxBytes`, the result equals the original string.                                                                          |
 
 Generator: `Gen.unicodeString()` paired with `Gen.int(in: 0...200)` for
 the byte limit. The string generator should be biased toward multi-byte
@@ -198,20 +198,20 @@ errors occur.
 
 #### ContentHash determinism
 
-| Property | Description |
-| --- | --- |
-| Deterministic | `ContentHash.compute(from: data) == ContentHash.compute(from: data)` for all `Data`. |
-| File-data agreement | For any `Data`, writing it to a temp file and calling `compute(fromFileAt:)` returns the same hash as `compute(from:)`. |
-| Prefix/suffix partition | `hash.prefix + hash.suffix == hash.value` and `hash.prefix.count == 2`. |
+| Property                | Description                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Deterministic           | `ContentHash.compute(from: data) == ContentHash.compute(from: data)` for all `Data`.                                    |
+| File-data agreement     | For any `Data`, writing it to a temp file and calling `compute(fromFileAt:)` returns the same hash as `compute(from:)`. |
+| Prefix/suffix partition | `hash.prefix + hash.suffix == hash.value` and `hash.prefix.count == 2`.                                                 |
 
 Generator: `Gen.data(count: .int(in: 0...10_000))`.
 
 #### BulkTagState
 
-| Property | Description |
-| --- | --- |
-| Consistency | If every selected object has the tag, state is `.all`. If none do, `.none`. Otherwise `.some`. |
-| Empty selection | `compute` returns `.none` for an empty selection regardless of the mapping. |
+| Property           | Description                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------- |
+| Consistency        | If every selected object has the tag, state is `.all`. If none do, `.none`. Otherwise `.some`.     |
+| Empty selection    | `compute` returns `.none` for an empty selection regardless of the mapping.                        |
 | Case insensitivity | Adding the same tag name in a different case to all objects does not change the state from `.all`. |
 
 Generator: random `[Int64: [String]]` mapping and `Set<Int64>` selection,
@@ -219,11 +219,11 @@ with tag names drawn from a small alphabet to encourage collisions.
 
 #### TableInteraction
 
-| Property | Description |
-| --- | --- |
-| Totality | Every `(KeyInput, InteractionContext)` pair produces a valid `InteractionEffect` (no traps, no undefined behavior). |
-| Editing blocks shortcuts | When `context.isEditing` is true, the result is always `.passthrough` for non-escape keys. |
-| Text field focus blocks shortcuts | When `context.textFieldIsFocused` is true, the result is always `.passthrough`. |
+| Property                          | Description                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Totality                          | Every `(KeyInput, InteractionContext)` pair produces a valid `InteractionEffect` (no traps, no undefined behavior). |
+| Editing blocks shortcuts          | When `context.isEditing` is true, the result is always `.passthrough` for non-escape keys.                          |
+| Text field focus blocks shortcuts | When `context.textFieldIsFocused` is true, the result is always `.passthrough`.                                     |
 
 Generator: `Gen.element(of: KeyInput.allCases)` combined with a
 `Gen<InteractionContext>` that randomizes each boolean field and the column

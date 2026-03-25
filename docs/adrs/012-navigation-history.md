@@ -117,7 +117,7 @@ scoped to what the user is looking at.
 #### Contextual empty states
 
 When the intersection of all active constraints yields zero results, the empty
-state should tell the user *why* the list is empty and *where* matching items
+state should tell the user _why_ the list is empty and _where_ matching items
 exist, if any. The exact subtitle depends on which constraints are excluding
 results.
 
@@ -151,15 +151,15 @@ constraint is active, a single relaxed query suffices.
 
 **Empty state messages by scenario:**
 
-| Folder active | Tags active | Search active | Condition | Title | Subtitle |
-|---|---|---|---|---|---|
-| any | any | no | folder is empty | No Items | -- |
-| any | any | yes | `relaxBoth == 0` | No Results | Check the spelling or try a new search |
-| yes | no | yes | `relaxFolder > 0` | No Results | Not showing N items in other folders |
-| no | yes | yes | `relaxTags > 0` | No Results | Not showing N items with other tags |
-| yes | yes | yes | `relaxFolder > 0 && relaxTags == 0` | No Results | Not showing N items in other folders |
-| yes | yes | yes | `relaxFolder == 0 && relaxTags > 0` | No Results | Not showing N items with other tags |
-| yes | yes | yes | `relaxFolder > 0 && relaxTags > 0` | No Results | Not showing N items in other folders or with other tags |
+| Folder active | Tags active | Search active | Condition                           | Title      | Subtitle                                                |
+| ------------- | ----------- | ------------- | ----------------------------------- | ---------- | ------------------------------------------------------- |
+| any           | any         | no            | folder is empty                     | No Items   | --                                                      |
+| any           | any         | yes           | `relaxBoth == 0`                    | No Results | Check the spelling or try a new search                  |
+| yes           | no          | yes           | `relaxFolder > 0`                   | No Results | Not showing N items in other folders                    |
+| no            | yes         | yes           | `relaxTags > 0`                     | No Results | Not showing N items with other tags                     |
+| yes           | yes         | yes           | `relaxFolder > 0 && relaxTags == 0` | No Results | Not showing N items in other folders                    |
+| yes           | yes         | yes           | `relaxFolder == 0 && relaxTags > 0` | No Results | Not showing N items with other tags                     |
+| yes           | yes         | yes           | `relaxFolder > 0 && relaxTags > 0`  | No Results | Not showing N items in other folders or with other tags |
 
 In the last row, N = `relaxBoth` (the total number of matches anywhere in the
 store). In all other rows showing N, N is the value from the single relaxed
