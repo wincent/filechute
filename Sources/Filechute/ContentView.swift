@@ -304,6 +304,7 @@ struct ContentView: View {
   private func contentArea(objects: [StoredObject]) -> some View {
     if storeManager.objects.isEmpty {
       emptyStateView
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else if objects.isEmpty {
       ContentUnavailableView.search(text: searchText)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
