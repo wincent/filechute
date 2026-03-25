@@ -40,6 +40,7 @@ struct FilechuteApp: App {
       CommandGroup(replacing: .textEditing) {}
       FileMenuCommands()
       FilechuteCommands()
+      ZoomCommands()
     }
 
     Settings {
@@ -83,6 +84,14 @@ struct FocusedBulkTagEditorKey: FocusedValueKey {
   typealias Value = Binding<Bool>
 }
 
+struct FocusedThumbnailSizeKey: FocusedValueKey {
+  typealias Value = Binding<Double>
+}
+
+struct FocusedIsGridModeKey: FocusedValueKey {
+  typealias Value = Bool
+}
+
 extension FocusedValues {
   var storeURL: URL? {
     get { self[FocusedStoreURLKey.self] }
@@ -97,6 +106,16 @@ extension FocusedValues {
   var showBulkTagEditor: Binding<Bool>? {
     get { self[FocusedBulkTagEditorKey.self] }
     set { self[FocusedBulkTagEditorKey.self] = newValue }
+  }
+
+  var thumbnailSize: Binding<Double>? {
+    get { self[FocusedThumbnailSizeKey.self] }
+    set { self[FocusedThumbnailSizeKey.self] = newValue }
+  }
+
+  var isGridMode: Bool? {
+    get { self[FocusedIsGridModeKey.self] }
+    set { self[FocusedIsGridModeKey.self] = newValue }
   }
 }
 
@@ -183,6 +202,39 @@ struct FilechuteCommands: Commands {
       Button("Databases") {
         openWindow(id: "database-browser")
       }
+    }
+  }
+}
+
+struct ZoomCommands: Commands {
+  @FocusedValue(\.thumbnailSize) var thumbnailSize
+  @FocusedValue(\.isGridMode) var isGridMode
+
+  private static let zoomFactor = 1.25
+  private static let minSize = 64.0
+  private static let maxSize = 1280.0
+
+  var body: some Commands {
+    CommandGroup(after: .toolbar) {
+      Button("Zoom In") {
+        guard let thumbnailSize else { return }
+        thumbnailSize.wrappedValue = min(
+          thumbnailSize.wrappedValue * Self.zoomFactor,
+          Self.maxSize
+        )
+      }
+      .keyboardShortcut("+", modifiers: .command)
+      .disabled(isGridMode != true)
+
+      Button("Zoom Out") {
+        guard let thumbnailSize else { return }
+        thumbnailSize.wrappedValue = max(
+          thumbnailSize.wrappedValue / Self.zoomFactor,
+          Self.minSize
+        )
+      }
+      .keyboardShortcut("-", modifiers: .command)
+      .disabled(isGridMode != true)
     }
   }
 }

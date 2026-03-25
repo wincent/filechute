@@ -97,6 +97,8 @@ struct ContentView: View {
       loadFolderObjects(for: sidebarSelection)
     }
     .focusedSceneValue(\.showBulkTagEditor, $showBulkTagEditor)
+    .focusedSceneValue(\.thumbnailSize, $thumbnailSize)
+    .focusedSceneValue(\.isGridMode, viewMode == "preview")
   }
 
   private var allItemsView: some View {
