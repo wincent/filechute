@@ -28,8 +28,7 @@ private func makePNGData() -> Data {
 struct ThumbnailCacheTests {
   @Test("Cache miss returns nil for nonexistent file")
   func cacheMissNonexistent() {
-    let cache = ThumbnailCache.shared
-    cache.invalidateAll()
+    let cache = ThumbnailCache()
 
     let hash = sampleHash(200)
     let url = URL(fileURLWithPath: "/tmp/nonexistent-thumbnail-\(UUID().uuidString).png")
@@ -39,8 +38,7 @@ struct ThumbnailCacheTests {
 
   @Test("Cache hit returns image for existing file")
   func cacheHit() throws {
-    let cache = ThumbnailCache.shared
-    cache.invalidateAll()
+    let cache = ThumbnailCache()
 
     let dir = FileManager.default.temporaryDirectory
       .appendingPathComponent("filechute-thumb-test-\(UUID().uuidString)")
@@ -63,8 +61,7 @@ struct ThumbnailCacheTests {
 
   @Test("Invalidate removes specific hash from cache")
   func invalidateSpecific() throws {
-    let cache = ThumbnailCache.shared
-    cache.invalidateAll()
+    let cache = ThumbnailCache()
 
     let dir = FileManager.default.temporaryDirectory
       .appendingPathComponent("filechute-thumb-inv-\(UUID().uuidString)")
@@ -89,7 +86,7 @@ struct ThumbnailCacheTests {
 
   @Test("InvalidateAll clears entire cache")
   func invalidateAll() throws {
-    let cache = ThumbnailCache.shared
+    let cache = ThumbnailCache()
 
     let dir = FileManager.default.temporaryDirectory
       .appendingPathComponent("filechute-thumb-all-\(UUID().uuidString)")

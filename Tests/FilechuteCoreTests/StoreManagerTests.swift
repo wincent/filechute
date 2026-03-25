@@ -615,6 +615,38 @@ struct StoreManagerDirectoryIngestionTests {
     }
   }
 
+  @Test("Concurrent directory ingestion accumulates total file count")
+  func concurrentProgressTotals() async throws {
+    try await withStoreManager { manager in
+      let dir = try makeTempDir()
+      defer { try? FileManager.default.removeItem(at: dir) }
+
+      let folderA = dir.appendingPathComponent("FolderA")
+      try FileManager.default.createDirectory(at: folderA, withIntermediateDirectories: true)
+      _ = try createTempFile(in: folderA, name: "a1.txt", contents: "a1")
+      _ = try createTempFile(in: folderA, name: "a2.txt", contents: "a2")
+
+      let folderB = dir.appendingPathComponent("FolderB")
+      try FileManager.default.createDirectory(at: folderB, withIntermediateDirectories: true)
+      _ = try createTempFile(in: folderB, name: "b1.txt", contents: "b1")
+      _ = try createTempFile(in: folderB, name: "b2.txt", contents: "b2")
+      _ = try createTempFile(in: folderB, name: "b3.txt", contents: "b3")
+
+      // Ingest both concurrently, like drag-and-drop does.
+      async let taskA: () = manager.ingestDirectory(at: folderA)
+      async let taskB: () = manager.ingestDirectory(at: folderB)
+      _ = try await (taskA, taskB)
+
+      // After both complete, processedFiles should never have exceeded totalFiles.
+      // With the old bug, totalFiles would be set to one folder's count while
+      // processedFiles accumulated from both.
+      let isActive = await manager.ingestionProgress.isActive
+      #expect(!isActive)
+      let objects = await manager.objects
+      #expect(objects.count == 5)
+    }
+  }
+
   @Test("Ingest directory into parent folder")
   func ingestIntoParentFolder() async throws {
     try await withStoreManager { manager in

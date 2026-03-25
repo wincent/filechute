@@ -5,7 +5,7 @@ public final class ThumbnailCache: @unchecked Sendable {
 
   private let cache = NSCache<NSString, NSImage>()
 
-  private init() {
+  public init() {
     cache.countLimit = 500
   }
 

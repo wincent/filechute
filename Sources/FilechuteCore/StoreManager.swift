@@ -9,10 +9,30 @@ public final class IngestionProgress {
   public var totalFiles = 0
   public var processedFiles = 0
   public var currentFileName = ""
+  private var activeCount = 0
 
   public var fractionCompleted: Double {
     guard totalFiles > 0 else { return 0 }
     return Double(processedFiles) / Double(totalFiles)
+  }
+
+  func begin(fileCount: Int) {
+    if activeCount == 0 {
+      totalFiles = 0
+      processedFiles = 0
+      currentFileName = ""
+    }
+    activeCount += 1
+    totalFiles += fileCount
+    isActive = true
+  }
+
+  func end() {
+    activeCount -= 1
+    if activeCount <= 0 {
+      activeCount = 0
+      isActive = false
+    }
   }
 }
 
@@ -279,13 +299,11 @@ public final class StoreManager {
     let ignorePatterns =
       AppDefaults.shared.stringArray(forKey: "ignoredFilePatterns") ?? [".DS_Store", ".git"]
     var countPaths: Set<String> = []
-    ingestionProgress.totalFiles = countFiles(
+    let fileCount = countFiles(
       at: url, ignorePatterns: ignorePatterns, visitedPaths: &countPaths
     )
-    ingestionProgress.processedFiles = 0
-    ingestionProgress.currentFileName = ""
-    ingestionProgress.isActive = true
-    defer { ingestionProgress.isActive = false }
+    ingestionProgress.begin(fileCount: fileCount)
+    defer { ingestionProgress.end() }
 
     var visitedPaths: Set<String> = []
     try await ingestDirectoryRecursive(
