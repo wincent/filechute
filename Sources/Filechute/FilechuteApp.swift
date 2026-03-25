@@ -96,6 +96,10 @@ struct FocusedIsGridModeKey: FocusedValueKey {
   typealias Value = Bool
 }
 
+struct FocusedSidebarSelectionKey: FocusedValueKey {
+  typealias Value = Binding<NavigationSection?>
+}
+
 extension FocusedValues {
   var storeURL: URL? {
     get { self[FocusedStoreURLKey.self] }
@@ -120,6 +124,11 @@ extension FocusedValues {
   var isGridMode: Bool? {
     get { self[FocusedIsGridModeKey.self] }
     set { self[FocusedIsGridModeKey.self] = newValue }
+  }
+
+  var sidebarSelection: Binding<NavigationSection?>? {
+    get { self[FocusedSidebarSelectionKey.self] }
+    set { self[FocusedSidebarSelectionKey.self] = newValue }
   }
 }
 
@@ -187,6 +196,7 @@ struct FileMenuCommands: Commands {
 struct FilechuteCommands: Commands {
   @Environment(\.openWindow) private var openWindow
   @FocusedValue(\.showBulkTagEditor) var showBulkTagEditor
+  @FocusedValue(\.sidebarSelection) var sidebarSelection
 
   var body: some Commands {
     CommandGroup(after: .textEditing) {
@@ -195,6 +205,14 @@ struct FilechuteCommands: Commands {
       }
       .keyboardShortcut("t", modifiers: .command)
       .disabled(showBulkTagEditor == nil)
+    }
+
+    CommandGroup(after: .sidebar) {
+      Button("All Items") {
+        sidebarSelection?.wrappedValue = .allItems
+      }
+      .keyboardShortcut("1", modifiers: .command)
+      .disabled(sidebarSelection == nil)
     }
 
     CommandMenu("Develop") {

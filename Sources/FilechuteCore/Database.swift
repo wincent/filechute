@@ -480,16 +480,39 @@ public actor Database {
     ).first ?? nil
   }
 
-  public func search(_ queryText: String, limit: Int = 100) throws -> [StoredObject] {
+  public func search(
+    _ queryText: String,
+    inFolder folderId: Int64? = nil,
+    withAllTagIds tagIds: [Int64] = [],
+    limit: Int = 100
+  ) throws -> [StoredObject] {
     let sanitized = sanitizeFTS5Query(queryText)
     guard !sanitized.isEmpty else { return [] }
+
+    var joins = ""
+    var conditions = " AND o.deleted_at IS NULL"
+
+    if let folderId {
+      let allFolderIds = [folderId] + (try allDescendantFolderIds(of: folderId))
+      let folderIdList = allFolderIds.map(String.init).joined(separator: ", ")
+      joins += " JOIN folder_items fi ON fi.object_id = o.id"
+      conditions += " AND fi.folder_id IN (\(folderIdList))"
+    }
+
+    for (i, tagId) in tagIds.enumerated() {
+      let alias = "tg\(i + 1)"
+      joins += " JOIN taggings \(alias) ON \(alias).object_id = o.id"
+      conditions += " AND \(alias).tag_id = \(tagId)"
+    }
+
+    let distinct = folderId != nil ? "DISTINCT " : ""
     return try query(
       """
-      SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at,
+      SELECT \(distinct)o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at,
              o.last_opened_at, o.file_extension, o.notes
       FROM search_index si
-      JOIN objects o ON o.id = si.rowid
-      WHERE search_index MATCH ? AND o.deleted_at IS NULL
+      JOIN objects o ON o.id = si.rowid\(joins)
+      WHERE search_index MATCH ?\(conditions)
       ORDER BY bm25(search_index, 10.0, 5.0, 3.0, 1.0)
       LIMIT ?
       """,
@@ -499,6 +522,46 @@ public actor Database {
       },
       read: readObject
     )
+  }
+
+  public func searchCount(
+    _ queryText: String,
+    inFolder folderId: Int64? = nil,
+    withAllTagIds tagIds: [Int64] = []
+  ) throws -> Int {
+    let sanitized = sanitizeFTS5Query(queryText)
+    guard !sanitized.isEmpty else { return 0 }
+
+    var joins = ""
+    var conditions = " AND o.deleted_at IS NULL"
+
+    if let folderId {
+      let allFolderIds = [folderId] + (try allDescendantFolderIds(of: folderId))
+      let folderIdList = allFolderIds.map(String.init).joined(separator: ", ")
+      joins += " JOIN folder_items fi ON fi.object_id = o.id"
+      conditions += " AND fi.folder_id IN (\(folderIdList))"
+    }
+
+    for (i, tagId) in tagIds.enumerated() {
+      let alias = "tg\(i + 1)"
+      joins += " JOIN taggings \(alias) ON \(alias).object_id = o.id"
+      conditions += " AND \(alias).tag_id = \(tagId)"
+    }
+
+    let countExpr = folderId != nil ? "COUNT(DISTINCT o.id)" : "COUNT(*)"
+    let result: [Int] = try query(
+      """
+      SELECT \(countExpr)
+      FROM search_index si
+      JOIN objects o ON o.id = si.rowid\(joins)
+      WHERE search_index MATCH ?\(conditions)
+      """,
+      bind: { stmt in
+        sqlite3_bind_text(stmt, 1, sanitized, -1, SQLITE_TRANSIENT)
+      },
+      read: { stmt in Int(sqlite3_column_int64(stmt, 0)) }
+    )
+    return result.first ?? 0
   }
 
   private func sanitizeFTS5Query(_ query: String) -> String {
@@ -531,12 +594,17 @@ public actor Database {
     )
   }
 
-  public func objects(withAllTagIds tagIds: [Int64]) throws -> [StoredObject] {
+  public func objects(withAllTagIds tagIds: [Int64], inFolder folderId: Int64? = nil) throws
+    -> [StoredObject]
+  {
     guard !tagIds.isEmpty else {
+      if let folderId {
+        return try items(inFolder: folderId, recursive: true)
+      }
       return try allObjects()
     }
 
-    if tagIds.count == 1 {
+    if tagIds.count == 1 && folderId == nil {
       return try objects(withTagId: tagIds[0])
     }
 
@@ -548,8 +616,16 @@ public actor Database {
       conditions += " AND \(alias).tag_id = \(tagId)"
     }
 
+    if let folderId {
+      let allFolderIds = [folderId] + (try allDescendantFolderIds(of: folderId))
+      let folderIdList = allFolderIds.map(String.init).joined(separator: ", ")
+      joins += " JOIN folder_items fi ON fi.object_id = o.id"
+      conditions += " AND fi.folder_id IN (\(folderIdList))"
+    }
+
+    let distinct = folderId != nil ? "DISTINCT " : ""
     let sql = """
-          SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
+          SELECT \(distinct)o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at, o.last_opened_at, o.file_extension, o.notes
           FROM objects o\(joins)
           \(conditions)
           ORDER BY o.name
@@ -558,9 +634,42 @@ public actor Database {
     return try query(sql, read: readObject)
   }
 
-  public func reachableTags(from tagIds: [Int64]) throws -> [TagCount] {
-    guard !tagIds.isEmpty else {
+  public func reachableTags(from tagIds: [Int64], inFolder folderId: Int64? = nil) throws
+    -> [TagCount]
+  {
+    guard !tagIds.isEmpty || folderId != nil else {
       return try allTagsWithCounts()
+    }
+
+    let readTagCount: (OpaquePointer) -> TagCount = { stmt in
+      TagCount(
+        tag: Tag(id: self.columnInt64(stmt, 0), name: self.columnText(stmt, 1)!),
+        count: Int(self.columnInt64(stmt, 2))
+      )
+    }
+
+    var folderJoin = ""
+    var folderCondition = ""
+    if let folderId {
+      let allFolderIds = [folderId] + (try allDescendantFolderIds(of: folderId))
+      let folderIdList = allFolderIds.map(String.init).joined(separator: ", ")
+      folderJoin = " JOIN folder_items fi ON fi.object_id = o.id"
+      folderCondition = " AND fi.folder_id IN (\(folderIdList))"
+    }
+
+    if tagIds.isEmpty {
+      return try query(
+        """
+        SELECT t.id, t.name, COUNT(DISTINCT o.id) as count
+        FROM tags t
+        JOIN taggings tg ON tg.tag_id = t.id
+        JOIN objects o ON o.id = tg.object_id AND o.deleted_at IS NULL\(folderJoin)
+        WHERE 1=1\(folderCondition)
+        GROUP BY t.id
+        ORDER BY t.name
+        """,
+        read: readTagCount
+      )
     }
 
     var joins = ""
@@ -573,12 +682,15 @@ public actor Database {
     }
 
     joins += " JOIN taggings tn ON tn.object_id = o.id"
+    joins += folderJoin
 
     let excludeList = tagIds.map(String.init).joined(separator: ", ")
     conditions += " AND tn.tag_id NOT IN (\(excludeList))"
+    conditions += folderCondition
 
+    let countExpr = folderId != nil ? "COUNT(DISTINCT o.id)" : "COUNT(*)"
     let sql = """
-          SELECT tags.id, tags.name, COUNT(*) as count
+          SELECT tags.id, tags.name, \(countExpr) as count
           FROM objects o\(joins)
           JOIN tags ON tags.id = tn.tag_id
           \(conditions)
@@ -586,14 +698,7 @@ public actor Database {
           ORDER BY tags.name
       """
 
-    return try query(
-      sql,
-      read: { stmt in
-        TagCount(
-          tag: Tag(id: self.columnInt64(stmt, 0), name: self.columnText(stmt, 1)!),
-          count: Int(self.columnInt64(stmt, 2))
-        )
-      })
+    return try query(sql, read: readTagCount)
   }
 
   // MARK: - Metadata

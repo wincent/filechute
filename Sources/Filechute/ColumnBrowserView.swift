@@ -3,8 +3,10 @@ import SwiftUI
 
 struct ColumnBrowserView: View {
   var storeManager: StoreManager
-  @Binding var filteredObjects: [StoredObject]?
-  @State private var columns: [BrowserColumn] = []
+  @Binding var columns: [BrowserColumn]
+  var rootTags: [TagCount]
+  var folderId: Int64?
+  var onSelectionChanged: () -> Void
   @State private var columnWidths: [Int: CGFloat] = [:]
   @FocusState private var focusedColumn: Int?
 
@@ -14,7 +16,7 @@ struct ColumnBrowserView: View {
         HStack(alignment: .top, spacing: 0) {
           BrowserColumnView(
             title: "Tags",
-            items: storeManager.allTags,
+            items: rootTags,
             selection: columns.isEmpty ? nil : columns[0].selectedTagIds,
             columnIndex: 0,
             focusedColumn: $focusedColumn,
@@ -65,9 +67,6 @@ struct ColumnBrowserView: View {
     }
     .frame(maxHeight: .infinity)
     .background(.background)
-    .task {
-      try? await storeManager.refresh()
-    }
   }
 
   private func nextSelection(after index: Int) -> Set<Int64>? {
@@ -84,23 +83,23 @@ struct ColumnBrowserView: View {
     }
 
     guard !tagIds.isEmpty else {
-      filteredObjects = nil
+      onSelectionChanged()
       return
     }
 
     let allSelectedTagIds = accumulatedTagIds(through: level - 1).union(tagIds)
     let newColumn = BrowserColumn(selectedTagIds: tagIds, reachableTags: [])
     columns.append(newColumn)
+    onSelectionChanged()
 
     Task {
       let tagIdArray = Array(allSelectedTagIds)
-      let reachable = try? await storeManager.database.reachableTags(from: tagIdArray)
-      let objects = try? await storeManager.database.objects(withAllTagIds: tagIdArray)
-
+      let reachable = try? await storeManager.database.reachableTags(
+        from: tagIdArray, inFolder: folderId
+      )
       if level < columns.count {
         columns[level].reachableTags = reachable ?? []
       }
-      filteredObjects = objects
     }
   }
 

@@ -162,8 +162,12 @@ public final class StoreManager {
     try await refresh()
   }
 
-  public func search(_ query: String) async throws -> [StoredObject] {
-    var results = try await database.search(query)
+  public func search(
+    _ query: String,
+    inFolder folderId: Int64? = nil,
+    withAllTagIds tagIds: [Int64] = []
+  ) async throws -> [StoredObject] {
+    var results = try await database.search(query, inFolder: folderId, withAllTagIds: tagIds)
     for i in results.indices {
       results[i].sizeBytes = sizesByObject[results[i].id] ?? 0
     }

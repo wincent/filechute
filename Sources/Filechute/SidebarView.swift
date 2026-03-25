@@ -17,12 +17,7 @@ private class OptionClickState {
   var stabilizing = false
 }
 
-enum NavigationSection: Hashable {
-  case store
-  case allItems
-  case folder(Int64)
-  case trash
-
+extension NavigationSection {
   var icon: String {
     switch self {
     case .store: "archivebox"
@@ -30,11 +25,6 @@ enum NavigationSection: Hashable {
     case .folder: "folder"
     case .trash: "trash"
     }
-  }
-
-  var folderId: Int64? {
-    if case .folder(let id) = self { return id }
-    return nil
   }
 }
 

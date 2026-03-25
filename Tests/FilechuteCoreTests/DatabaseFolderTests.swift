@@ -587,3 +587,217 @@ struct DatabaseBrowserTests {
     #expect(nextRows.count == 1)
   }
 }
+
+@Suite("Database - Folder-Scoped Queries")
+struct DatabaseFolderScopedTests {
+  @Test("reachableTags scoped to folder shows only tags on objects in that folder")
+  func reachableTagsScopedToFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b")
+
+    let tagA = try await db.getOrCreateTag(name: "alpha")
+    let tagB = try await db.getOrCreateTag(name: "beta")
+    try await db.addTag(tagA.id, toObject: id1)
+    try await db.addTag(tagB.id, toObject: id2)
+
+    let folder = try await db.createFolder(name: "Docs")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let tags = try await db.reachableTags(from: [], inFolder: folder.id)
+    let names = tags.map(\.tag.name)
+    #expect(names.contains("alpha"))
+    #expect(!names.contains("beta"))
+  }
+
+  @Test("reachableTags scoped to folder includes subfolder objects")
+  func reachableTagsRecursive() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+
+    let tag = try await db.getOrCreateTag(name: "gamma")
+    try await db.addTag(tag.id, toObject: id1)
+
+    let parent = try await db.createFolder(name: "Parent")
+    let child = try await db.createFolder(name: "Child", parentId: parent.id)
+    try await db.addItemToFolder(objectId: id1, folderId: child.id)
+
+    let tags = try await db.reachableTags(from: [], inFolder: parent.id)
+    #expect(tags.count == 1)
+    #expect(tags[0].tag.name == "gamma")
+  }
+
+  @Test("reachableTags with tags and folder narrows to folder")
+  func reachableTagsWithTagsAndFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b")
+
+    let shared = try await db.getOrCreateTag(name: "shared")
+    let inFolder = try await db.getOrCreateTag(name: "in-folder")
+    let outside = try await db.getOrCreateTag(name: "outside")
+    try await db.addTag(shared.id, toObject: id1)
+    try await db.addTag(inFolder.id, toObject: id1)
+    try await db.addTag(shared.id, toObject: id2)
+    try await db.addTag(outside.id, toObject: id2)
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let reachable = try await db.reachableTags(from: [shared.id], inFolder: folder.id)
+    let names = reachable.map(\.tag.name)
+    #expect(names.contains("in-folder"))
+    #expect(!names.contains("outside"))
+    #expect(!names.contains("shared"))
+  }
+
+  @Test("reachableTags without folder returns global tags (backward compat)")
+  func reachableTagsNoFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let tag = try await db.getOrCreateTag(name: "t1")
+    try await db.addTag(tag.id, toObject: id1)
+
+    let tags = try await db.reachableTags(from: [])
+    #expect(tags.count == 1)
+    #expect(tags[0].tag.name == "t1")
+  }
+
+  @Test("objects(withAllTagIds:inFolder:) returns intersection")
+  func objectsWithTagsInFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b")
+
+    let tag = try await db.getOrCreateTag(name: "t")
+    try await db.addTag(tag.id, toObject: id1)
+    try await db.addTag(tag.id, toObject: id2)
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let results = try await db.objects(withAllTagIds: [tag.id], inFolder: folder.id)
+    #expect(results.count == 1)
+    #expect(results[0].name == "a")
+  }
+
+  @Test("objects(withAllTagIds:inFolder:) with empty tags returns folder items")
+  func objectsNoTagsInFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "b")
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let results = try await db.objects(withAllTagIds: [], inFolder: folder.id)
+    #expect(results.count == 1)
+    #expect(results[0].name == "a")
+  }
+
+  @Test("objects(withAllTagIds:inFolder:) no duplicates from subfolder membership")
+  func objectsNoDuplicatesFromSubfolders() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+
+    let tag = try await db.getOrCreateTag(name: "t")
+    try await db.addTag(tag.id, toObject: id1)
+
+    let parent = try await db.createFolder(name: "Parent")
+    let child = try await db.createFolder(name: "Child", parentId: parent.id)
+    try await db.addItemToFolder(objectId: id1, folderId: parent.id)
+    try await db.addItemToFolder(objectId: id1, folderId: child.id)
+
+    let results = try await db.objects(withAllTagIds: [tag.id], inFolder: parent.id)
+    #expect(results.count == 1)
+  }
+
+  @Test("search scoped to folder")
+  func searchInFolder() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "report alpha")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "report beta")
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let results = try await db.search("report", inFolder: folder.id)
+    #expect(results.count == 1)
+    #expect(results[0].name == "report alpha")
+  }
+
+  @Test("search scoped to folder and tags")
+  func searchInFolderWithTags() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "doc one")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "doc two")
+
+    let tag = try await db.getOrCreateTag(name: "important")
+    try await db.addTag(tag.id, toObject: id1)
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+    try await db.addItemToFolder(objectId: id2, folderId: folder.id)
+
+    let results = try await db.search("doc", inFolder: folder.id, withAllTagIds: [tag.id])
+    #expect(results.count == 1)
+    #expect(results[0].name == "doc one")
+  }
+
+  @Test("searchCount returns correct count")
+  func searchCount() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "memo alpha")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "memo beta")
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+
+    let globalCount = try await db.searchCount("memo")
+    #expect(globalCount == 2)
+
+    let folderCount = try await db.searchCount("memo", inFolder: folder.id)
+    #expect(folderCount == 1)
+  }
+
+  @Test("searchCount with tags")
+  func searchCountWithTags() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "note x")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "note y")
+
+    let tag = try await db.getOrCreateTag(name: "urgent")
+    try await db.addTag(tag.id, toObject: id1)
+
+    let allCount = try await db.searchCount("note")
+    #expect(allCount == 2)
+
+    let taggedCount = try await db.searchCount("note", withAllTagIds: [tag.id])
+    #expect(taggedCount == 1)
+  }
+
+  @Test("reachableTags folder-scoped counts are correct")
+  func reachableTagsFolderCounts() async throws {
+    let db = try makeDB()
+    let id1 = try await db.insertObject(hash: sampleHash(1), name: "a")
+    let id2 = try await db.insertObject(hash: sampleHash(2), name: "b")
+    let id3 = try await db.insertObject(hash: sampleHash(3), name: "c")
+
+    let tag = try await db.getOrCreateTag(name: "t")
+    try await db.addTag(tag.id, toObject: id1)
+    try await db.addTag(tag.id, toObject: id2)
+    try await db.addTag(tag.id, toObject: id3)
+
+    let folder = try await db.createFolder(name: "F")
+    try await db.addItemToFolder(objectId: id1, folderId: folder.id)
+    try await db.addItemToFolder(objectId: id2, folderId: folder.id)
+
+    let tags = try await db.reachableTags(from: [], inFolder: folder.id)
+    let t = tags.first { $0.tag.name == "t" }
+    #expect(t?.count == 2)
+
+    let globalTags = try await db.reachableTags(from: [])
+    let globalT = globalTags.first { $0.tag.name == "t" }
+    #expect(globalT?.count == 3)
+  }
+}

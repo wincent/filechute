@@ -9,9 +9,12 @@ struct ContentView: View {
   @State private var selection: Set<Int64> = []
   @State private var showInspector = true
   @State private var showColumnBrowser = true
-  @State private var filteredObjects: [StoredObject]?
+  @State private var columns: [BrowserColumn] = []
+  @State private var rootTags: [TagCount] = []
+  @State private var navigationObjects: [StoredObject] = []
   @State private var searchText = ""
   @State private var searchResults: [StoredObject]?
+  @State private var emptySearchHint: String?
   @State private var quickLookCoordinator = QuickLookCoordinator()
   @State private var sortOrder: [KeyPathComparator<StoredObject>] = [
     KeyPathComparator(\.name)
@@ -28,7 +31,6 @@ struct ContentView: View {
   @State private var gridColumnCount = 4
   @SceneStorage("thumbnailSize") private var thumbnailSize: Double = 128
   @State private var sidebarSelection: NavigationSection? = .allItems
-  @State private var folderObjects: [StoredObject]?
   @SceneStorage("expandedFolderIds") private var expandedFolderIds: String = ""
   @Environment(\.undoManager) private var undoManager
 
@@ -38,10 +40,7 @@ struct ContentView: View {
   }
 
   var displayedObjects: [StoredObject] {
-    if let searchResults {
-      return searchResults
-    }
-    var result = folderObjects ?? filteredObjects ?? storeManager.objects
+    var result = searchResults ?? navigationObjects
     result.sort(using: sortOrder)
     return result
   }
@@ -75,21 +74,33 @@ struct ContentView: View {
     .onDisappear {
       keyMonitor.uninstall()
     }
-    .onChange(of: sidebarSelection) { _, newSelection in
+    .task {
+      refreshRootTags()
+      refreshNavigationObjects()
+    }
+    .onChange(of: sidebarSelection) { _, _ in
       selection = []
-      loadFolderObjects(for: newSelection)
+      columns = []
+      refreshRootTags()
+      refreshNavigationObjects()
+      if !searchText.isEmpty {
+        performSearch(query: searchText)
+      }
     }
     .onChange(of: storeManager.folders) { _, _ in
-      loadFolderObjects(for: sidebarSelection)
+      refreshRootTags()
+      refreshNavigationObjects()
     }
     .onChange(of: storeManager.objects) { _, _ in
-      loadFolderObjects(for: sidebarSelection)
+      refreshRootTags()
+      refreshNavigationObjects()
     }
     .onChange(of: searchText) { _, newValue in
       performSearch(query: newValue)
     }
     .focusedSceneValue(\.showBulkTagEditor, $showBulkTagEditor)
     .focusedSceneValue(\.thumbnailSize, $thumbnailSize)
+    .focusedSceneValue(\.sidebarSelection, $sidebarSelection)
     .focusedSceneValue(\.isGridMode, viewMode == "preview")
   }
 
@@ -99,7 +110,15 @@ struct ContentView: View {
       if showColumnBrowser {
         ColumnBrowserView(
           storeManager: storeManager,
-          filteredObjects: $filteredObjects
+          columns: $columns,
+          rootTags: rootTags,
+          folderId: sidebarSelection?.folderId,
+          onSelectionChanged: {
+            refreshNavigationObjects()
+            if !searchText.isEmpty {
+              performSearch(query: searchText)
+            }
+          }
         )
         .frame(height: columnBrowserHeight)
 
@@ -306,8 +325,24 @@ struct ContentView: View {
       emptyStateView
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else if objects.isEmpty {
-      ContentUnavailableView.search(text: searchText)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      Group {
+        if !searchText.isEmpty {
+          if let emptySearchHint {
+            ContentUnavailableView {
+              Label("No Results", systemImage: "magnifyingglass")
+            } description: {
+              Text(emptySearchHint)
+            }
+          } else {
+            ContentUnavailableView.search(text: searchText)
+          }
+        } else {
+          ContentUnavailableView {
+            Label("No Items", systemImage: "tray")
+          }
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else if viewMode == "preview" {
       PreviewGridView(
         storeManager: storeManager,
@@ -337,7 +372,7 @@ struct ContentView: View {
                 try? await storeManager.removeItemFromFolder(
                   objectId: objectId, folderId: folder.id
                 )
-                loadFolderObjects(for: sidebarSelection)
+                refreshNavigationObjects()
               }
             }
           } : nil,
@@ -474,25 +509,112 @@ struct ContentView: View {
     searchTask?.cancel()
     guard !query.isEmpty else {
       searchResults = nil
+      emptySearchHint = nil
       return
     }
     searchTask = Task {
       try? await Task.sleep(for: .milliseconds(150))
       guard !Task.isCancelled else { return }
-      let results = try? await storeManager.search(query)
+      let folderId = sidebarSelection?.folderId
+      let tagIds = accumulatedTagIds()
+      let results = try? await storeManager.search(
+        query, inFolder: folderId, withAllTagIds: tagIds
+      )
       guard !Task.isCancelled else { return }
       searchResults = results
+
+      if let results, results.isEmpty {
+        let hint = computeEmptySearchHint(
+          query: query, folderId: folderId, tagIds: tagIds
+        )
+        guard !Task.isCancelled else { return }
+        emptySearchHint = hint
+      } else {
+        emptySearchHint = nil
+      }
     }
   }
 
-  private func loadFolderObjects(for section: NavigationSection?) {
-    guard case .folder(let folderId) = section else {
-      folderObjects = nil
+  private func computeEmptySearchHint(
+    query: String, folderId: Int64?, tagIds: [Int64]
+  ) -> String? {
+    let hasFolder = folderId != nil
+    let hasTags = !tagIds.isEmpty
+
+    guard hasFolder || hasTags else { return nil }
+
+    if hasFolder && !hasTags {
+      guard let n = try? storeManager.database.searchCount(query), n > 0 else { return nil }
+      return "Not showing \(n) \(n == 1 ? "item" : "items") in other folders"
+    }
+
+    if !hasFolder && hasTags {
+      guard let n = try? storeManager.database.searchCount(query), n > 0 else { return nil }
+      return "Not showing \(n) \(n == 1 ? "item" : "items") with other tags"
+    }
+
+    let relaxFolder =
+      (try? storeManager.database.searchCount(
+        query, withAllTagIds: tagIds
+      )) ?? 0
+    let relaxTags =
+      (try? storeManager.database.searchCount(
+        query, inFolder: folderId
+      )) ?? 0
+
+    if relaxFolder > 0 && relaxTags > 0 {
+      let relaxBoth = (try? storeManager.database.searchCount(query)) ?? 0
       return
+        "Not showing \(relaxBoth) \(relaxBoth == 1 ? "item" : "items") in other folders or with other tags"
+    } else if relaxFolder > 0 {
+      return
+        "Not showing \(relaxFolder) \(relaxFolder == 1 ? "item" : "items") in other folders"
+    } else if relaxTags > 0 {
+      return "Not showing \(relaxTags) \(relaxTags == 1 ? "item" : "items") with other tags"
+    } else {
+      guard let n = try? storeManager.database.searchCount(query), n > 0 else { return nil }
+      return
+        "Not showing \(n) \(n == 1 ? "item" : "items") in other folders or with other tags"
     }
+  }
+
+  private func refreshNavigationObjects() {
+    let folderId = sidebarSelection?.folderId
+    let tagIds = accumulatedTagIds()
     Task {
-      folderObjects = try? await storeManager.itemsInFolder(folderId, recursive: true)
+      if folderId == nil && tagIds.isEmpty {
+        navigationObjects = storeManager.objects
+      } else {
+        var objects =
+          (try? await storeManager.database.objects(
+            withAllTagIds: tagIds, inFolder: folderId
+          )) ?? []
+        for i in objects.indices {
+          objects[i].sizeBytes = storeManager.sizesByObject[objects[i].id] ?? 0
+        }
+        navigationObjects = objects
+      }
     }
+  }
+
+  private func refreshRootTags() {
+    let folderId = sidebarSelection?.folderId
+    Task {
+      if let folderId {
+        rootTags =
+          (try? await storeManager.database.reachableTags(from: [], inFolder: folderId)) ?? []
+      } else {
+        rootTags = storeManager.allTags
+      }
+    }
+  }
+
+  private func accumulatedTagIds() -> [Int64] {
+    var ids = Set<Int64>()
+    for column in columns {
+      ids.formUnion(column.selectedTagIds)
+    }
+    return Array(ids)
   }
 
   private func dragProvider(for objectIds: [Int64]) -> NSItemProvider {
@@ -693,7 +815,7 @@ struct ContentView: View {
             try? await storeManager.removeItemFromFolder(
               objectId: objectId, folderId: folder.id
             )
-            loadFolderObjects(for: sidebarSelection)
+            refreshNavigationObjects()
           }
         }
       }
@@ -711,7 +833,7 @@ struct ContentView: View {
               )
             }
           }
-          loadFolderObjects(for: sidebarSelection)
+          refreshNavigationObjects()
         }
       }
     }
