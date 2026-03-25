@@ -84,6 +84,7 @@ public actor Database {
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_rename_history_object ON rename_history(object_id)",
+    "CREATE INDEX IF NOT EXISTS idx_objects_active_name ON objects(deleted_at, name)",
   ]
 
   private static let migrations: [String] = [
@@ -126,7 +127,7 @@ public actor Database {
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_folder_items_object ON folder_items(object_id)",
-    "CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id, deleted_at, position)",
   ]
 
   private static func initSchema(db: OpaquePointer) throws {
