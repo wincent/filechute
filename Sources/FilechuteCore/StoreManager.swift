@@ -328,7 +328,10 @@ public final class StoreManager {
     }
     visitedPaths.insert(realPath)
 
-    let folder = try await createFolder(name: url.lastPathComponent, parentId: parentFolderId)
+    let maxPos = try await database.maxFolderPosition(parentId: parentFolderId)
+    let folder = try await database.createFolder(
+      name: url.lastPathComponent, parentId: parentFolderId, position: maxPos + 1.0
+    )
 
     let fm = FileManager.default
     let contents = try fm.contentsOfDirectory(
