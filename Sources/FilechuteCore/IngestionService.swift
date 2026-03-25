@@ -47,8 +47,11 @@ public struct IngestionService: Sendable {
     }
 
     let objectName = name ?? sourceURL.deletingPathExtension().lastPathComponent
+    let contentText = TextExtractorService.extractText(from: sourceURL)
 
-    let objectId = try await database.insertObject(hash: hash, name: objectName, fileExtension: ext)
+    let objectId = try await database.insertObject(
+      hash: hash, name: objectName, fileExtension: ext, contentText: contentText
+    )
     if !ext.isEmpty {
       try await database.setMetadata(objectId: objectId, key: "extension", value: ext)
     }
@@ -103,7 +106,10 @@ public struct IngestionService: Sendable {
       return existing
     }
 
-    let newObjectId = try await database.insertObject(hash: newHash, name: existing.name)
+    let contentText = TextExtractorService.extractText(from: sourceURL)
+    let newObjectId = try await database.insertObject(
+      hash: newHash, name: existing.name, contentText: contentText
+    )
 
     let existingTags = try await database.tags(forObject: objectId)
     for tag in existingTags {

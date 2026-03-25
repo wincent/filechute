@@ -859,3 +859,135 @@ struct DatabaseBulkTaggingTests {
     #expect(names[id3]?.contains("partial") == true)
   }
 }
+
+@Suite("Database - Full-Text Search")
+struct DatabaseFTSTests {
+  @Test("Search matches object name")
+  func searchByName() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "tax return 2024")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "vacation photo")
+
+    let results = try await db.search("tax")
+    #expect(results.count == 1)
+    #expect(results[0].name == "tax return 2024")
+  }
+
+  @Test("Search matches tags")
+  func searchByTags() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "document")
+    let tag = try await db.getOrCreateTag(name: "invoice")
+    try await db.addTag(tag.id, toObject: id)
+
+    let results = try await db.search("invoice")
+    #expect(results.count == 1)
+    #expect(results[0].name == "document")
+  }
+
+  @Test("Search matches notes")
+  func searchByNotes() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "scan")
+    try await db.updateNotes(id: id, notes: "receipt from hardware store")
+
+    let results = try await db.search("hardware")
+    #expect(results.count == 1)
+    #expect(results[0].name == "scan")
+  }
+
+  @Test("Search matches content text")
+  func searchByContentText() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(
+      hash: sampleHash(1), name: "report", contentText: "quarterly revenue was up 15%"
+    )
+    _ = try await db.insertObject(hash: sampleHash(2), name: "photo")
+
+    let results = try await db.search("revenue")
+    #expect(results.count == 1)
+    #expect(results[0].name == "report")
+  }
+
+  @Test("Search excludes soft-deleted objects")
+  func searchExcludesDeleted() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "tax return")
+    try await db.softDeleteObject(id: id)
+
+    let results = try await db.search("tax")
+    #expect(results.count == 0)
+  }
+
+  @Test("Search returns restored objects")
+  func searchAfterRestore() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "tax return")
+    try await db.softDeleteObject(id: id)
+    try await db.restoreObject(id: id)
+
+    let results = try await db.search("tax")
+    #expect(results.count == 1)
+  }
+
+  @Test("Search reflects renamed objects")
+  func searchAfterRename() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "old name")
+    try await db.renameObject(id: id, newName: "invoice 2024")
+
+    let oldResults = try await db.search("old")
+    #expect(oldResults.count == 0)
+
+    let newResults = try await db.search("invoice")
+    #expect(newResults.count == 1)
+  }
+
+  @Test("Search uses stemming")
+  func searchWithStemming() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "invoices")
+
+    let results = try await db.search("invoice")
+    #expect(results.count == 1)
+  }
+
+  @Test("Search with prefix matching")
+  func searchWithPrefix() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "quarterly report")
+
+    let results = try await db.search("quart")
+    #expect(results.count == 1)
+  }
+
+  @Test("Search with empty query returns empty results")
+  func searchEmpty() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "test")
+
+    let results = try await db.search("")
+    #expect(results.count == 0)
+  }
+
+  @Test("Search with multiple terms")
+  func searchMultipleTerms() async throws {
+    let db = try makeDB()
+    _ = try await db.insertObject(hash: sampleHash(1), name: "tax return 2024")
+    _ = try await db.insertObject(hash: sampleHash(2), name: "tax form 2023")
+
+    let results = try await db.search("tax 2024")
+    #expect(results.count == 1)
+    #expect(results[0].name == "tax return 2024")
+  }
+
+  @Test("Permanently deleted objects removed from index")
+  func searchAfterPermanentDelete() async throws {
+    let db = try makeDB()
+    let id = try await db.insertObject(hash: sampleHash(1), name: "secret document")
+    try await db.permanentlyDeleteObject(id: id)
+
+    let results = try await db.search("secret")
+    #expect(results.count == 0)
+  }
+}

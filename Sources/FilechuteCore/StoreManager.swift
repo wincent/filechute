@@ -142,6 +142,14 @@ public final class StoreManager {
     try await refresh()
   }
 
+  public func search(_ query: String) async throws -> [StoredObject] {
+    var results = try await database.search(query)
+    for i in results.indices {
+      results[i].sizeBytes = sizesByObject[results[i].id] ?? 0
+    }
+    return results
+  }
+
   public func renameObject(_ objectId: Int64, to name: String) async throws {
     try await database.renameObject(id: objectId, newName: name)
     try await refresh()

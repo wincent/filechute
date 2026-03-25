@@ -11,6 +11,7 @@ struct ContentView: View {
   @State private var showColumnBrowser = true
   @State private var filteredObjects: [StoredObject]?
   @State private var searchText = ""
+  @State private var searchResults: [StoredObject]?
   @State private var quickLookCoordinator = QuickLookCoordinator()
   @State private var sortOrder: [KeyPathComparator<StoredObject>] = [
     KeyPathComparator(\.name)
@@ -37,22 +38,10 @@ struct ContentView: View {
   }
 
   var displayedObjects: [StoredObject] {
-    var result = folderObjects ?? filteredObjects ?? storeManager.objects
-    if !searchText.isEmpty {
-      let terms =
-        searchText
-        .lowercased()
-        .split(separator: " ")
-        .map(String.init)
-      result = result.filter { obj in
-        let tagNames = storeManager.tagNamesByObject[obj.id] ?? []
-        return terms.allSatisfy { term in
-          obj.name.lowercased().contains(term)
-            || tagNames.contains { $0.lowercased().contains(term) }
-            || (obj.notes?.lowercased().contains(term) ?? false)
-        }
-      }
+    if let searchResults {
+      return searchResults
     }
+    var result = folderObjects ?? filteredObjects ?? storeManager.objects
     result.sort(using: sortOrder)
     return result
   }
@@ -95,6 +84,9 @@ struct ContentView: View {
     }
     .onChange(of: storeManager.objects) { _, _ in
       loadFolderObjects(for: sidebarSelection)
+    }
+    .onChange(of: searchText) { _, newValue in
+      performSearch(query: newValue)
     }
     .focusedSceneValue(\.showBulkTagEditor, $showBulkTagEditor)
     .focusedSceneValue(\.thumbnailSize, $thumbnailSize)
@@ -472,6 +464,23 @@ struct ContentView: View {
         return .handled
       }
       return .ignored
+    }
+  }
+
+  @State private var searchTask: Task<Void, Never>?
+
+  private func performSearch(query: String) {
+    searchTask?.cancel()
+    guard !query.isEmpty else {
+      searchResults = nil
+      return
+    }
+    searchTask = Task {
+      try? await Task.sleep(for: .milliseconds(150))
+      guard !Task.isCancelled else { return }
+      let results = try? await storeManager.search(query)
+      guard !Task.isCancelled else { return }
+      searchResults = results
     }
   }
 

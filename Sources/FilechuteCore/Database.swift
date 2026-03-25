@@ -97,6 +97,16 @@ public actor Database {
     ) WHERE file_extension = ''
     """,
     "ALTER TABLE objects ADD COLUMN notes TEXT",
+    "ALTER TABLE objects ADD COLUMN content_text TEXT",
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+        name,
+        tags,
+        notes,
+        content_text,
+        tokenize='porter unicode61'
+    )
+    """,
     """
     CREATE TABLE IF NOT EXISTS folders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,20 +149,26 @@ public actor Database {
 
   // MARK: - Objects
 
-  public func insertObject(hash: ContentHash, name: String, fileExtension: String = "") throws
-    -> Int64
-  {
+  public func insertObject(
+    hash: ContentHash, name: String, fileExtension: String = "", contentText: String? = nil
+  ) throws -> Int64 {
     let now = Int64(Date().timeIntervalSince1970)
     let id = try insert(
-      "INSERT INTO objects (hash, name, created_at, modified_at, file_extension) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO objects (hash, name, created_at, modified_at, file_extension, content_text) VALUES (?, ?, ?, ?, ?, ?)",
       bind: { stmt in
         sqlite3_bind_text(stmt, 1, hash.hexString, -1, SQLITE_TRANSIENT)
         sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT)
         sqlite3_bind_int64(stmt, 3, now)
         sqlite3_bind_int64(stmt, 4, now)
         sqlite3_bind_text(stmt, 5, fileExtension, -1, SQLITE_TRANSIENT)
+        if let contentText {
+          sqlite3_bind_text(stmt, 6, contentText, -1, SQLITE_TRANSIENT)
+        } else {
+          sqlite3_bind_null(stmt, 6)
+        }
       }
     )
+    try insertSearchIndex(objectId: id, name: name, tags: "", notes: nil, contentText: contentText)
     Log.debug("Inserted object \(name) (\(hash.hexString.prefix(8)))", category: .database)
     return id
   }
@@ -202,6 +218,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 3, id)
       }
     )
+    try updateSearchIndex(objectId: id)
   }
 
   public func renameHistory(for objectId: Int64) throws -> [(
@@ -253,6 +270,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 3, id)
       }
     )
+    try updateSearchIndex(objectId: id)
   }
 
   public func softDeleteObject(id: Int64) throws {
@@ -263,6 +281,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 2, id)
       }
     )
+    try deleteSearchIndex(objectId: id)
     Log.debug("Soft-deleted object \(id)", category: .database)
   }
 
@@ -271,10 +290,12 @@ public actor Database {
       "UPDATE objects SET deleted_at = NULL WHERE id = ?",
       bind: { stmt in sqlite3_bind_int64(stmt, 1, id) }
     )
+    try updateSearchIndex(objectId: id)
     Log.debug("Restored object \(id)", category: .database)
   }
 
   public func permanentlyDeleteObject(id: Int64) throws {
+    try deleteSearchIndex(objectId: id)
     try update(
       "DELETE FROM objects WHERE id = ?",
       bind: { stmt in sqlite3_bind_int64(stmt, 1, id) }
@@ -358,6 +379,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 3, Int64(Date().timeIntervalSince1970))
       }
     )
+    try updateSearchIndex(objectId: objectId)
     Log.debug("Added tag \(tagId) to object \(objectId)", category: .database)
   }
 
@@ -369,6 +391,7 @@ public actor Database {
         sqlite3_bind_int64(stmt, 2, tagId)
       }
     )
+    try updateSearchIndex(objectId: objectId)
     Log.debug("Removed tag \(tagId) from object \(objectId)", category: .database)
   }
 
@@ -403,7 +426,95 @@ public actor Database {
     return result
   }
 
-  // MARK: - Search
+  // MARK: - Full-Text Search
+
+  private func insertSearchIndex(
+    objectId: Int64, name: String, tags: String, notes: String?, contentText: String?
+  ) throws {
+    try insert(
+      "INSERT INTO search_index (rowid, name, tags, notes, content_text) VALUES (?, ?, ?, ?, ?)",
+      bind: { stmt in
+        sqlite3_bind_int64(stmt, 1, objectId)
+        sqlite3_bind_text(stmt, 2, name, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 3, tags, -1, SQLITE_TRANSIENT)
+        if let notes {
+          sqlite3_bind_text(stmt, 4, notes, -1, SQLITE_TRANSIENT)
+        } else {
+          sqlite3_bind_null(stmt, 4)
+        }
+        if let contentText {
+          sqlite3_bind_text(stmt, 5, contentText, -1, SQLITE_TRANSIENT)
+        } else {
+          sqlite3_bind_null(stmt, 5)
+        }
+      }
+    )
+  }
+
+  private func updateSearchIndex(objectId: Int64) throws {
+    guard let obj = try getObject(byId: objectId) else { return }
+    let tagNames = try tags(forObject: objectId).map(\.name).joined(separator: " ")
+    try deleteSearchIndex(objectId: objectId)
+    try insertSearchIndex(
+      objectId: objectId,
+      name: obj.name,
+      tags: tagNames,
+      notes: obj.notes,
+      contentText: contentText(forObject: objectId)
+    )
+  }
+
+  private func deleteSearchIndex(objectId: Int64) throws {
+    try update(
+      "DELETE FROM search_index WHERE rowid = ?",
+      bind: { stmt in sqlite3_bind_int64(stmt, 1, objectId) }
+    )
+  }
+
+  private func contentText(forObject objectId: Int64) throws -> String? {
+    try query(
+      "SELECT content_text FROM objects WHERE id = ?",
+      bind: { stmt in sqlite3_bind_int64(stmt, 1, objectId) },
+      read: { stmt in self.columnText(stmt, 0) }
+    ).first ?? nil
+  }
+
+  public func search(_ queryText: String, limit: Int = 100) throws -> [StoredObject] {
+    let sanitized = sanitizeFTS5Query(queryText)
+    guard !sanitized.isEmpty else { return [] }
+    return try query(
+      """
+      SELECT o.id, o.hash, o.name, o.created_at, o.deleted_at, o.modified_at,
+             o.last_opened_at, o.file_extension, o.notes
+      FROM search_index si
+      JOIN objects o ON o.id = si.rowid
+      WHERE search_index MATCH ? AND o.deleted_at IS NULL
+      ORDER BY bm25(search_index, 10.0, 5.0, 3.0, 1.0)
+      LIMIT ?
+      """,
+      bind: { stmt in
+        sqlite3_bind_text(stmt, 1, sanitized, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int(stmt, 2, Int32(limit))
+      },
+      read: readObject
+    )
+  }
+
+  private func sanitizeFTS5Query(_ query: String) -> String {
+    let tokens: [String] =
+      query
+      .split(separator: " ", omittingEmptySubsequences: true)
+      .compactMap { token in
+        var t = String(token)
+        t = t.replacingOccurrences(of: "\"", with: "")
+        t = t.replacingOccurrences(of: "'", with: "")
+        guard !t.isEmpty else { return nil }
+        return "\"\(t)\"*"
+      }
+    return tokens.joined(separator: " ")
+  }
+
+  // MARK: - Tag-Based Search
 
   public func objects(withTagId tagId: Int64) throws -> [StoredObject] {
     try query(
