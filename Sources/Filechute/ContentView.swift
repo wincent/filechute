@@ -31,6 +31,7 @@ struct ContentView: View {
   @State private var gridColumnCount = 4
   @SceneStorage("thumbnailSize") private var thumbnailSize: Double = 128
   @State private var sidebarSelection: NavigationSection? = .allItems
+  @State private var history = NavigationHistory()
   @SceneStorage("expandedFolderIds") private var expandedFolderIds: String = ""
   @Environment(\.undoManager) private var undoManager
 
@@ -49,7 +50,7 @@ struct ContentView: View {
     NavigationSplitView {
       SidebarView(
         storeManager: storeManager,
-        selection: $sidebarSelection,
+        selection: sidebarNavigationBinding,
         expandedFolderIds: $expandedFolderIds,
         onRename: onRenameStore
       )
@@ -78,15 +79,6 @@ struct ContentView: View {
       refreshRootTags()
       refreshNavigationObjects()
     }
-    .onChange(of: sidebarSelection) { _, _ in
-      selection = []
-      columns = []
-      refreshRootTags()
-      refreshNavigationObjects()
-      if !searchText.isEmpty {
-        performSearch(query: searchText)
-      }
-    }
     .onChange(of: storeManager.folders) { _, _ in
       refreshRootTags()
       refreshNavigationObjects()
@@ -100,8 +92,17 @@ struct ContentView: View {
     }
     .focusedSceneValue(\.showBulkTagEditor, $showBulkTagEditor)
     .focusedSceneValue(\.thumbnailSize, $thumbnailSize)
-    .focusedSceneValue(\.sidebarSelection, $sidebarSelection)
+    .focusedSceneValue(\.sidebarSelection, sidebarNavigationBinding)
     .focusedSceneValue(\.isGridMode, viewMode == "preview")
+    .focusedSceneValue(
+      \.navigationActions,
+      NavigationActions(
+        goBack: goBack,
+        goForward: goForward,
+        canGoBack: history.canGoBack,
+        canGoForward: history.canGoForward
+      )
+    )
   }
 
   private var allItemsView: some View {
@@ -114,6 +115,7 @@ struct ContentView: View {
           rootTags: rootTags,
           folderId: sidebarSelection?.folderId,
           onSelectionChanged: {
+            pushCurrentNavigationState()
             refreshNavigationObjects()
             if !searchText.isEmpty {
               performSearch(query: searchText)
@@ -163,6 +165,23 @@ struct ContentView: View {
       }
     }
     .toolbar {
+      ToolbarItem(placement: .navigation) {
+        HStack(spacing: 2) {
+          Button(action: goBack) {
+            Image(systemName: "chevron.backward")
+          }
+          .disabled(!history.canGoBack)
+          .accessibilityIdentifier("nav-back")
+          .accessibilityLabel("Back")
+
+          Button(action: goForward) {
+            Image(systemName: "chevron.forward")
+          }
+          .disabled(!history.canGoForward)
+          .accessibilityIdentifier("nav-forward")
+          .accessibilityLabel("Forward")
+        }
+      }
       ToolbarItem(placement: .primaryAction) {
         Picker("View Mode", selection: $viewMode) {
           Image(systemName: "list.bullet")
@@ -615,6 +634,73 @@ struct ContentView: View {
       ids.formUnion(column.selectedTagIds)
     }
     return Array(ids)
+  }
+
+  private var sidebarNavigationBinding: Binding<NavigationSection?> {
+    Binding(
+      get: { sidebarSelection },
+      set: { newValue in
+        navigateToSidebar(newValue)
+      }
+    )
+  }
+
+  private func navigateToSidebar(_ newValue: NavigationSection?) {
+    guard newValue != sidebarSelection else { return }
+    sidebarSelection = newValue
+    selection = []
+    columns = []
+    pushCurrentNavigationState()
+    refreshRootTags()
+    refreshNavigationObjects()
+    if !searchText.isEmpty {
+      performSearch(query: searchText)
+    }
+  }
+
+  private func pushCurrentNavigationState() {
+    let state = NavigationState(
+      sidebarSelection: sidebarSelection,
+      columnSelections: columns.map(\.selectedTagIds)
+    )
+    history.push(state)
+  }
+
+  private func goBack() {
+    guard let state = history.goBack() else { return }
+    restoreNavigationState(state)
+  }
+
+  private func goForward() {
+    guard let state = history.goForward() else { return }
+    restoreNavigationState(state)
+  }
+
+  private func restoreNavigationState(_ state: NavigationState) {
+    searchText = ""
+    searchResults = nil
+    emptySearchHint = nil
+    selection = []
+    sidebarSelection = state.sidebarSelection
+    columns = state.columnSelections.map { tagIds in
+      BrowserColumn(selectedTagIds: tagIds, reachableTags: [])
+    }
+    refreshRootTags()
+    refreshNavigationObjects()
+
+    Task {
+      let folderId = state.sidebarSelection?.folderId
+      var accumulated = Set<Int64>()
+      for (i, tagIds) in state.columnSelections.enumerated() {
+        accumulated.formUnion(tagIds)
+        let reachable = try? await storeManager.database.reachableTags(
+          from: Array(accumulated), inFolder: folderId
+        )
+        if i < columns.count {
+          columns[i].reachableTags = reachable ?? []
+        }
+      }
+    }
   }
 
   private func dragProvider(for objectIds: [Int64]) -> NSItemProvider {

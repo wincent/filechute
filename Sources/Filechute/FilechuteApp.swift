@@ -100,6 +100,17 @@ struct FocusedSidebarSelectionKey: FocusedValueKey {
   typealias Value = Binding<NavigationSection?>
 }
 
+struct NavigationActions {
+  var goBack: () -> Void
+  var goForward: () -> Void
+  var canGoBack: Bool
+  var canGoForward: Bool
+}
+
+struct FocusedNavigationActionsKey: FocusedValueKey {
+  typealias Value = NavigationActions
+}
+
 extension FocusedValues {
   var storeURL: URL? {
     get { self[FocusedStoreURLKey.self] }
@@ -129,6 +140,11 @@ extension FocusedValues {
   var sidebarSelection: Binding<NavigationSection?>? {
     get { self[FocusedSidebarSelectionKey.self] }
     set { self[FocusedSidebarSelectionKey.self] = newValue }
+  }
+
+  var navigationActions: NavigationActions? {
+    get { self[FocusedNavigationActionsKey.self] }
+    set { self[FocusedNavigationActionsKey.self] = newValue }
   }
 }
 
@@ -197,6 +213,7 @@ struct FilechuteCommands: Commands {
   @Environment(\.openWindow) private var openWindow
   @FocusedValue(\.showBulkTagEditor) var showBulkTagEditor
   @FocusedValue(\.sidebarSelection) var sidebarSelection
+  @FocusedValue(\.navigationActions) var navActions
 
   var body: some Commands {
     CommandGroup(after: .textEditing) {
@@ -208,11 +225,31 @@ struct FilechuteCommands: Commands {
     }
 
     CommandGroup(after: .sidebar) {
+      Button("Show Store") {
+        sidebarSelection?.wrappedValue = .store
+      }
+      .keyboardShortcut("0", modifiers: .command)
+      .disabled(sidebarSelection == nil)
+
       Button("All Items") {
         sidebarSelection?.wrappedValue = .allItems
       }
       .keyboardShortcut("1", modifiers: .command)
       .disabled(sidebarSelection == nil)
+
+      Divider()
+
+      Button("Back") {
+        navActions?.goBack()
+      }
+      .keyboardShortcut("[", modifiers: .command)
+      .disabled(navActions?.canGoBack != true)
+
+      Button("Forward") {
+        navActions?.goForward()
+      }
+      .keyboardShortcut("]", modifiers: .command)
+      .disabled(navActions?.canGoForward != true)
     }
 
     CommandMenu("Develop") {
